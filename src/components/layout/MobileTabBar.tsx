@@ -10,7 +10,10 @@ interface MobileTabBarProps {
 
 export function MobileTabBar({ activeTab, onTabChange }: MobileTabBarProps) {
   return (
-    <nav className="md:hidden flex border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <nav
+      className="md:hidden flex border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       {(['inbox', 'timeline'] as const).map(tab => (
         <button
           key={tab}
