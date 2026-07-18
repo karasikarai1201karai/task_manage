@@ -31,6 +31,7 @@ export function FreeSlotBlock({ slot, dayStartHour }: FreeSlotBlockProps) {
   return (
     <>
       <div
+        data-timeline-block
         role="button"
         tabIndex={0}
         aria-label={`空き ${formatDuration(slot.durationMinutes)} をタップしてタスクを配置`}

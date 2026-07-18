@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useMemo, useCallback, useRef, useState } from 'react';
+import { useDroppable, useDndMonitor } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { TaskBlock } from './TaskBlock';
 import { FreeSlotBlock } from './FreeSlotBlock';
 import { CurrentTimeLine } from './CurrentTimeLine';
+import { TaskFormModal } from '@/components/modals/TaskFormModal';
 import { HOUR_HEIGHT_PX, useTimelineScale } from '@/hooks/useTimelineScale';
 import { computeFreeSlots } from '@/lib/utils/time';
 import { cn } from '@/lib/utils';
@@ -20,9 +21,30 @@ export function Timeline({ scrollRef }: TimelineProps) {
   const dayPlans    = useStore(s => s.dayPlans);
   const config      = useStore(s => s.config);
   const currentDate = useStore(s => s.currentDate);
-  const { toTop }   = useTimelineScale(config.dayStartHour);
+  const { toTop, yToTime } = useTimelineScale(config.dayStartHour);
 
   const { setNodeRef, isOver } = useDroppable({ id: 'timeline-droppable' });
+
+  const taskAreaRef   = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const [createTime, setCreateTime] = useState<string | null>(null);
+
+  useDndMonitor({
+    onDragStart:  () => { isDraggingRef.current = true; },
+    onDragEnd:    () => { setTimeout(() => { isDraggingRef.current = false; }, 50); },
+    onDragCancel: () => { isDraggingRef.current = false; },
+  });
+
+  const handleAreaClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDraggingRef.current) return;
+    if ((e.target as HTMLElement).closest('[data-timeline-block]')) return;
+    const taskArea = taskAreaRef.current;
+    if (!taskArea) return;
+    const rect = taskArea.getBoundingClientRect();
+    const scrollTop = scrollRef?.current?.scrollTop ?? 0;
+    const time = yToTime(e.clientY, scrollTop, rect);
+    setCreateTime(time);
+  }, [yToTime, scrollRef]);
 
   const slots = useMemo(
     () => dayPlans[currentDate]?.slots ?? [],
@@ -70,7 +92,11 @@ export function Timeline({ scrollRef }: TimelineProps) {
         </div>
 
         {/* タスクエリア */}
-        <div className="flex-1 relative border-l border-gray-200 dark:border-gray-700">
+        <div
+          ref={taskAreaRef}
+          onClick={handleAreaClick}
+          className="flex-1 relative border-l border-gray-200 dark:border-gray-700"
+        >
 
           {/* グリッド線（1時間ごと） */}
           {hours.map(h => (
@@ -104,6 +130,14 @@ export function Timeline({ scrollRef }: TimelineProps) {
           <CurrentTimeLine dayStartHour={config.dayStartHour} />
         </div>
       </div>
+
+      {/* タイムライン背景タップによるタスク作成 */}
+      <TaskFormModal
+        open={!!createTime}
+        onClose={() => setCreateTime(null)}
+        defaultDate={currentDate}
+        defaultStartTime={createTime as TimeString ?? undefined}
+      />
     </div>
   );
 }

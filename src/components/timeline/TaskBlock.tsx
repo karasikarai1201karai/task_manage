@@ -50,6 +50,7 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
       ref={setNodeRef}
       {...attributes}
       {...(!isCompleted ? listeners : {})}
+      data-timeline-block
       style={{
         top: `${top}px`,
         height: `${height}px`,
