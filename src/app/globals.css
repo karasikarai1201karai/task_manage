@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --glow-color: rgba(34, 197, 94, 0.40);
+  --glow-ring:  #22c55e;
+}
+.dark {
+  --glow-color: rgba(74, 222, 128, 0.50);
+  --glow-ring:  #4ade80;
+}
+
 html,
 body {
   height: 100%;

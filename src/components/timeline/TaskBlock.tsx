@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { useTimelineScale } from '@/hooks/useTimelineScale';
@@ -26,11 +26,19 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
     disabled: task.status === 'completed',
   });
 
-  // ドラッグ終了直後の click イベントで誤完了するのを防ぐフラグ
-  const wasDragging = useRef(false);
+  const wasDragging  = useRef(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+
   useEffect(() => {
     if (isDragging) wasDragging.current = true;
   }, [isDragging]);
+
+  // アニメーション終了後にフラグをリセット
+  useEffect(() => {
+    if (!isCompleting) return;
+    const timer = setTimeout(() => setIsCompleting(false), 400);
+    return () => clearTimeout(timer);
+  }, [isCompleting]);
 
   const isCompleted = task.status === 'completed';
   const top         = toTop(slot.startTime);
@@ -42,19 +50,30 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
       ref={setNodeRef}
       {...attributes}
       {...(!isCompleted ? listeners : {})}
-      style={{ top: `${top}px`, height: `${height}px` }}
+      style={{
+        top: `${top}px`,
+        height: `${height}px`,
+        willChange: isCompleting ? 'transform, box-shadow' : 'auto',
+      }}
       className={cn(
         'absolute left-1 right-2 rounded-lg border px-2 py-1 overflow-hidden select-none',
+        'transition-opacity duration-300',
         colorClass,
+        isCompleted && !isCompleting && 'opacity-50',
         isCompleted
-          ? 'opacity-50 cursor-pointer'
+          ? 'cursor-pointer'
           : 'cursor-grab active:cursor-grabbing',
+        isCompleting && 'animate-task-complete-bounce',
         isDragging && 'opacity-25 cursor-grabbing',
       )}
       onClick={() => {
         if (wasDragging.current) { wasDragging.current = false; return; }
-        if (isCompleted) uncompleteTask(task.id);
-        else completeTask(task.id);
+        if (isCompleted) {
+          uncompleteTask(task.id);
+        } else {
+          setIsCompleting(true);
+          completeTask(task.id);
+        }
       }}
       title={task.title}
     >
@@ -65,9 +84,17 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
             isCompleted ? 'bg-current border-current' : 'border-current',
           )}
         >
-          {isCompleted && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+          {isCompleted && (
+            <Check
+              className={cn('w-2.5 h-2.5 text-white', isCompleting && 'animate-check-pop')}
+              strokeWidth={3}
+            />
+          )}
         </div>
-        <span className={cn('text-xs font-medium leading-tight line-clamp-2', isCompleted && 'line-through')}>
+        <span className={cn(
+          'text-xs font-medium leading-tight line-clamp-2',
+          isCompleted && !isCompleting && 'line-through',
+        )}>
           {task.title}
         </span>
       </div>
