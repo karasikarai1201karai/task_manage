@@ -70,11 +70,12 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
       <div
         ref={setNodeRef}
         className={cn(
-          'group flex items-center gap-2 p-2.5 rounded-lg border transition-opacity',
+          'group flex items-center gap-2 p-2.5 rounded-lg border transition-opacity select-none',
           colorClass,
           isHighlighted && 'ring-2 ring-blue-400 ring-offset-1',
           isDragging && 'opacity-25',
         )}
+        style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

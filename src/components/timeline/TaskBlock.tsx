@@ -16,7 +16,8 @@ interface TaskBlockProps {
 
 export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
   const { toTop, toHeight } = useTimelineScale(dayStartHour);
-  const completeTask        = useStore(s => s.completeTask);
+  const completeTask   = useStore(s => s.completeTask);
+  const uncompleteTask = useStore(s => s.uncompleteTask);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `scheduled-${task.id}`,
@@ -43,7 +44,11 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
           : 'cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-25 cursor-grabbing',
       )}
-      onClick={() => { if (!isDragging && !isCompleted) completeTask(task.id); }}
+      onClick={() => {
+        if (isDragging) return;
+        if (isCompleted) uncompleteTask(task.id);
+        else completeTask(task.id);
+      }}
       title={task.title}
     >
       <div className="flex items-start gap-1.5">

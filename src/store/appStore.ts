@@ -138,6 +138,17 @@ export const useStore = create<AppStore>((set, get) => ({
     get().saveToStorage();
   },
 
+  uncompleteTask: (taskId) => {
+    set(s => ({
+      tasks: s.tasks.map(t =>
+        t.id === taskId
+          ? { ...t, status: 'pending', completedAt: undefined, updatedAt: new Date().toISOString() }
+          : t
+      ),
+    }));
+    get().saveToStorage();
+  },
+
   rolloverIncompleteTasks: (fromDate, toDate) => {
     const { tasks, dayPlans } = get();
     const rolledTasks = getRolledOverTasks(tasks, dayPlans, fromDate, toDate);

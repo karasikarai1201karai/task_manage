@@ -60,6 +60,7 @@ export interface AppStore {
   scheduleTask: (taskId: string, date: DateString, startTime: TimeString) => void;
   unscheduleTask: (taskId: string, date: DateString) => void;
   completeTask: (taskId: string) => void;
+  uncompleteTask: (taskId: string) => void;
   rolloverIncompleteTasks: (fromDate: DateString, toDate: DateString) => void;
   updateConfig: (config: Partial<AppConfig>) => void;
   setCurrentDate: (date: DateString) => void;
