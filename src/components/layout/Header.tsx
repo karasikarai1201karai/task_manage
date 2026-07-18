@@ -7,7 +7,11 @@ import { useStore } from '@/store/appStore';
 import { today } from '@/lib/utils/time';
 import type { DateString } from '@/types';
 
-export function Header() {
+interface HeaderProps {
+  onSettingsClick: () => void;
+}
+
+export function Header({ onSettingsClick }: HeaderProps) {
   const currentDate    = useStore(s => s.currentDate);
   const setCurrentDate = useStore(s => s.setCurrentDate);
 
@@ -45,6 +49,7 @@ export function Header() {
       </div>
 
       <button
+        onClick={onSettingsClick}
         className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         aria-label="設定"
       >

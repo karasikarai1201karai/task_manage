@@ -46,17 +46,25 @@ export interface AppConfig {
   autoRollover: boolean;
 }
 
+export interface PendingDelete {
+  task: Task;
+  slots: Record<string, ScheduledSlot[]>;
+}
+
 export interface AppStore {
   tasks: Task[];
   dayPlans: Record<string, DayPlan>;
   config: AppConfig;
   currentDate: DateString;
   isLoaded: boolean;
+  pendingDelete: PendingDelete | null;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
   addTask: (task: Omit<Task, 'createdAt' | 'updatedAt'>) => void;
   updateTask: (taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => void;
   deleteTask: (taskId: string) => void;
+  undoDelete: () => void;
+  commitDelete: () => void;
   scheduleTask: (taskId: string, date: DateString, startTime: TimeString) => void;
   unscheduleTask: (taskId: string, date: DateString) => void;
   completeTask: (taskId: string) => void;

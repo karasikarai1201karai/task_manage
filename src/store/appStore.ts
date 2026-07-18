@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type { AppStore, Task, DayPlan, DateString, TimeString, StoredData } from '@/types';
+import type { AppStore, Task, DayPlan, DateString, TimeString, StoredData, ScheduledSlot } from '@/types';
 import { DEFAULT_CONFIG } from '@/lib/constants';
 import { getStorageAdapter } from '@/lib/storage';
 import { today, addMinutesToTime } from '@/lib/utils/time';
@@ -13,6 +13,7 @@ export const useStore = create<AppStore>((set, get) => ({
   config: DEFAULT_CONFIG,
   currentDate: today(),
   isLoaded: false,
+  pendingDelete: null,
 
   loadFromStorage: async () => {
     const adapter = getStorageAdapter();
@@ -73,6 +74,16 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   deleteTask: (taskId) => {
+    const { tasks, dayPlans } = get();
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const slots: Record<string, ScheduledSlot[]> = {};
+    Object.entries(dayPlans).forEach(([date, plan]) => {
+      const taskSlots = plan.slots.filter(sl => sl.taskId === taskId);
+      if (taskSlots.length > 0) slots[date] = taskSlots;
+    });
+
     set(s => {
       const newDayPlans = Object.entries(s.dayPlans).reduce<Record<string, DayPlan>>(
         (acc, [date, plan]) => {
@@ -81,10 +92,29 @@ export const useStore = create<AppStore>((set, get) => ({
         },
         {}
       );
-      return { tasks: s.tasks.filter(t => t.id !== taskId), dayPlans: newDayPlans };
+      return { tasks: s.tasks.filter(t => t.id !== taskId), dayPlans: newDayPlans, pendingDelete: { task, slots } };
     });
     get().saveToStorage();
   },
+
+  undoDelete: () => {
+    const { pendingDelete } = get();
+    if (!pendingDelete) return;
+    const { task, slots } = pendingDelete;
+    set(s => {
+      const newDayPlans = { ...s.dayPlans };
+      Object.entries(slots).forEach(([date, taskSlots]) => {
+        const existing = newDayPlans[date];
+        if (existing) {
+          newDayPlans[date] = { ...existing, slots: [...existing.slots, ...taskSlots], updatedAt: new Date().toISOString() };
+        }
+      });
+      return { tasks: [...s.tasks, task], dayPlans: newDayPlans, pendingDelete: null };
+    });
+    get().saveToStorage();
+  },
+
+  commitDelete: () => set({ pendingDelete: null }),
 
   scheduleTask: (taskId, date, startTime) => {
     const task = get().tasks.find(t => t.id === taskId);
