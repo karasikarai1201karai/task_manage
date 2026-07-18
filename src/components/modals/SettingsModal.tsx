@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Sun, Moon, Monitor, RefreshCw } from 'lucide-react';
+import { X, Sun, Moon, Monitor, Download, Upload } from 'lucide-react';
 import { useStore } from '@/store/appStore';
+import { getStorageAdapter } from '@/lib/storage';
 import { cn } from '@/lib/utils';
-import type { AppConfig } from '@/types';
+import type { AppConfig, StoredData } from '@/types';
 
 interface SettingsModalProps {
   open: boolean;
@@ -77,10 +79,43 @@ function HourSelect({
 }
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const config       = useStore(s => s.config);
-  const updateConfig = useStore(s => s.updateConfig);
+  const config          = useStore(s => s.config);
+  const updateConfig    = useStore(s => s.updateConfig);
+  const loadFromStorage = useStore(s => s.loadFromStorage);
 
   const set = (patch: Partial<AppConfig>) => updateConfig(patch);
+
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    const data = await getStorageAdapter().load();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `any-planner-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as StoredData;
+      if (!Array.isArray(data.tasks) || !data.dayPlans) throw new Error('invalid');
+      await getStorageAdapter().save(data);
+      await loadFromStorage();
+      setImportStatus('success');
+    } catch {
+      setImportStatus('error');
+    } finally {
+      setTimeout(() => setImportStatus('idle'), 3000);
+    }
+  };
 
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -186,7 +221,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </section>
 
             {/* 自動繰越 */}
-            <section className="mb-2">
+            <section className="mb-5">
               <SectionLabel>繰越</SectionLabel>
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4">
                 <SettingRow label="未完了タスクを翌日に自動繰越">
@@ -198,6 +233,47 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
                 アプリを開いた際、前日の未完了タスクをインボックスに追加します
+              </p>
+            </section>
+
+            {/* データ */}
+            <section className="mb-2">
+              <SectionLabel>データ</SectionLabel>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExport}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  エクスポート
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  インポート
+                </button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={handleImport}
+              />
+              {importStatus === 'success' && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-2 text-center">
+                  データをインポートしました
+                </p>
+              )}
+              {importStatus === 'error' && (
+                <p className="text-xs text-red-500 dark:text-red-400 mt-2 text-center">
+                  ファイルを読み込めませんでした
+                </p>
+              )}
+              <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
+                別の端末へデータを移行する際に使用します
               </p>
             </section>
           </div>
