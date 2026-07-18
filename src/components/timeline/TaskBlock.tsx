@@ -1,5 +1,6 @@
 'use client';
 
+import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { useTimelineScale } from '@/hooks/useTimelineScale';
 import { TASK_COLOR_MAP } from '@/lib/constants';
@@ -11,12 +12,17 @@ interface TaskBlockProps {
   task: Task;
   slot: ScheduledSlot;
   dayStartHour: number;
-  isDragging?: boolean;
 }
 
-export function TaskBlock({ task, slot, dayStartHour, isDragging }: TaskBlockProps) {
+export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
   const { toTop, toHeight } = useTimelineScale(dayStartHour);
   const completeTask        = useStore(s => s.completeTask);
+
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `scheduled-${task.id}`,
+    data: { type: 'scheduled', taskId: task.id },
+    disabled: task.status === 'completed',
+  });
 
   const isCompleted = task.status === 'completed';
   const top         = toTop(slot.startTime);
@@ -25,14 +31,19 @@ export function TaskBlock({ task, slot, dayStartHour, isDragging }: TaskBlockPro
 
   return (
     <div
-      className={cn(
-        'absolute left-1 right-2 rounded-lg border px-2 py-1 overflow-hidden cursor-pointer select-none transition-all',
-        colorClass,
-        isCompleted && 'opacity-50',
-        isDragging && 'shadow-lg ring-2 ring-blue-400 opacity-90',
-      )}
+      ref={setNodeRef}
+      {...attributes}
+      {...(!isCompleted ? listeners : {})}
       style={{ top: `${top}px`, height: `${height}px` }}
-      onClick={() => !isCompleted && completeTask(task.id)}
+      className={cn(
+        'absolute left-1 right-2 rounded-lg border px-2 py-1 overflow-hidden select-none',
+        colorClass,
+        isCompleted
+          ? 'opacity-50 cursor-pointer'
+          : 'cursor-grab active:cursor-grabbing',
+        isDragging && 'opacity-25 cursor-grabbing',
+      )}
+      onClick={() => { if (!isDragging && !isCompleted) completeTask(task.id); }}
       title={task.title}
     >
       <div className="flex items-start gap-1.5">
