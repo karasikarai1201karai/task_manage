@@ -126,6 +126,7 @@ export function QuickScheduleModal({ task, open, onClose, initialTime }: QuickSc
             </label>
             <input
               type="time"
+              step={900}
               value={startTime}
               onChange={e => setStartTime(e.target.value)}
               className="w-full px-3 py-3 text-base border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
