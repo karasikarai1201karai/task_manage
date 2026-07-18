@@ -10,11 +10,13 @@ import {
   useSensor,
   type DragStartEvent,
   type DragEndEvent,
+  type DragCancelEvent,
 } from '@dnd-kit/core';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
 import { InboxPanel } from '@/components/inbox/InboxPanel';
 import { Timeline } from '@/components/timeline/Timeline';
+import { TrashDropZone } from '@/components/inbox/TrashDropZone';
 import { useStore } from '@/store/appStore';
 import { useTimelineScale } from '@/hooks/useTimelineScale';
 import { TASK_COLOR_MAP } from '@/lib/constants';
@@ -23,14 +25,16 @@ import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
 
 export function AppShell() {
-  const [activeTab,    setActiveTab]    = useState<'inbox' | 'timeline'>('timeline');
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [activeTab,      setActiveTab]      = useState<'inbox' | 'timeline'>('timeline');
+  const [activeTaskId,   setActiveTaskId]   = useState<string | null>(null);
+  const [activeDragType, setActiveDragType] = useState<string | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
 
   const tasks        = useStore(s => s.tasks);
   const config       = useStore(s => s.config);
   const currentDate  = useStore(s => s.currentDate);
   const scheduleTask = useStore(s => s.scheduleTask);
+  const deleteTask   = useStore(s => s.deleteTask);
 
   const { yToTime } = useTimelineScale(config.dayStartHour);
 
@@ -45,34 +49,56 @@ export function AppShell() {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const taskId = event.active.data.current?.taskId as string | undefined;
+    const type   = event.active.data.current?.type   as string | undefined;
     setActiveTaskId(taskId ?? null);
+    setActiveDragType(type ?? null);
+  }, []);
+
+  const resetDragState = useCallback(() => {
+    setActiveTaskId(null);
+    setActiveDragType(null);
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveTaskId(null);
+    resetDragState();
     const { active, over } = event;
-    if (!over || over.id !== 'timeline-droppable') return;
+    if (!over) return;
 
     const taskId = active.data.current?.taskId as string | undefined;
     if (!taskId) return;
 
-    const scrollEl = timelineScrollRef.current;
-    if (!scrollEl) return;
+    // ゴミ箱ゾーンへのドロップ → 削除
+    if (over.id === 'trash-droppable') {
+      deleteTask(taskId);
+      return;
+    }
 
-    const rect       = scrollEl.getBoundingClientRect();
-    const scrollTop  = scrollEl.scrollTop;
-    const translated = active.rect.current.translated;
-    if (!translated) return;
+    // タイムラインへのドロップ → スケジュール
+    if (over.id === 'timeline-droppable') {
+      const scrollEl = timelineScrollRef.current;
+      if (!scrollEl) return;
+      const rect       = scrollEl.getBoundingClientRect();
+      const scrollTop  = scrollEl.scrollTop;
+      const translated = active.rect.current.translated;
+      if (!translated) return;
+      const time = yToTime(translated.top, scrollTop, rect);
+      scheduleTask(taskId, currentDate, time);
+    }
+  }, [yToTime, currentDate, scheduleTask, deleteTask, resetDragState]);
 
-    const time = yToTime(translated.top, scrollTop, rect);
-    scheduleTask(taskId, currentDate, time);
-  }, [yToTime, currentDate, scheduleTask]);
+  const handleDragCancel = useCallback((_event: DragCancelEvent) => {
+    resetDragState();
+  }, [resetDragState]);
+
+  // インボックスアイテムをドラッグ中のみゴミ箱を表示
+  const showTrash = activeDragType === 'inbox';
 
   return (
     <DndContext
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
         <Header />
@@ -97,6 +123,9 @@ export function AppShell() {
 
         <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
+
+      {/* ゴミ箱ドロップゾーン（インボックスアイテムのドラッグ中のみ表示） */}
+      <TrashDropZone isVisible={showTrash} />
 
       <DragOverlay dropAnimation={null}>
         {activeTask ? <OverlayCard task={activeTask} /> : null}
