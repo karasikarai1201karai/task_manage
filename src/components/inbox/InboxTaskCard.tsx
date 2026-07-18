@@ -9,9 +9,9 @@ import { Clock, GripVertical, Trash2 } from 'lucide-react';
 import { QuickScheduleModal } from '@/components/modals/QuickScheduleModal';
 import type { Task } from '@/types';
 
-const SWIPE_THRESHOLD = 72;   // この距離を超えたら削除
-const SWIPE_MAX       = 88;   // スワイプの最大量
-const LONG_PRESS_MS   = 500;  // ロングプレス判定 (ms)
+const SWIPE_DELETE_PX = 72;   // 削除確定までのスワイプ量
+const SWIPE_MAX_PX    = 88;   // スワイプの最大量
+const LONG_PRESS_MS   = 500;  // ロングプレス判定時間
 
 interface InboxTaskCardProps {
   task: Task;
@@ -27,93 +27,120 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
     data: { type: 'inbox', taskId: task.id },
   });
 
-  const gripRef  = useRef<HTMLButtonElement>(null);
-  const touch    = useRef({ x: 0, y: 0, determined: false, horizontal: false });
-  const lpTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gripRef   = useRef<HTMLButtonElement>(null);
+  const outerRef  = useRef<HTMLDivElement>(null);
+
+  // ポインター追跡（ref で管理 → レンダーに依存しない）
+  const ptr = useRef<{
+    id: number; startX: number; startY: number;
+    determined: boolean; swiping: boolean;
+  } | null>(null);
+  const swipeXRef = useRef(0);
+  const lpTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [swipeX,       setSwipeX]       = useState(0);
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
-  // ドラッグ開始時はスワイプをリセット
-  useEffect(() => { if (isDragging) setSwipeX(0); }, [isDragging]);
+  // ドラッグ中はスワイプをリセット
+  useEffect(() => {
+    if (isDragging) { setSwipeX(0); swipeXRef.current = 0; ptr.current = null; }
+  }, [isDragging]);
 
   const cancelLP = useCallback(() => {
     if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
   }, []);
 
-  /* ─── タッチハンドラ ─── */
-  const onTouchStart = (e: React.TouchEvent) => {
-    const onHandle = gripRef.current?.contains(e.target as Node) ?? false;
+  /* ─── ポインターイベント（タッチ・マウス共通） ─── */
 
-    touch.current = {
-      x:          e.touches[0].clientX,
-      y:          e.touches[0].clientY,
-      determined: false,
-      horizontal: false,
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
+    // ドラッグハンドル上のポインターは @dnd-kit に任せる
+    if (gripRef.current?.contains(e.target as Node)) return;
+
+    ptr.current = {
+      id: e.pointerId,
+      startX: e.clientX, startY: e.clientY,
+      determined: false, swiping: false,
     };
+    swipeXRef.current = 0;
 
-    // ハンドル以外の長押しでスケジュールモーダルを開く
-    if (!onHandle) {
-      lpTimer.current = setTimeout(() => {
-        navigator.vibrate?.(12);   // 触覚フィードバック（対応端末のみ）
-        setSwipeX(0);
-        setScheduleOpen(true);
-      }, LONG_PRESS_MS);
-    }
+    // ロングプレスタイマー開始
+    lpTimer.current = setTimeout(() => {
+      lpTimer.current = null;
+      navigator.vibrate?.(12);
+      ptr.current = null;
+      setSwipeX(0); swipeXRef.current = 0;
+      setScheduleOpen(true);
+    }, LONG_PRESS_MS);
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    const dx = e.touches[0].clientX - touch.current.x;
-    const dy = e.touches[0].clientY - touch.current.y;
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const p = ptr.current;
+    if (!p || e.pointerId !== p.id) return;
 
-    // 少しでも動いたらロングプレスをキャンセル
+    const dx = e.clientX - p.startX;
+    const dy = e.clientY - p.startY;
+
+    // 少しでも動いたらロングプレスキャンセル
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) cancelLP();
 
-    // 方向を確定（8px 以上動いてから判定）
-    if (!touch.current.determined && (Math.abs(dx) >= 8 || Math.abs(dy) >= 8)) {
-      touch.current.horizontal = Math.abs(dx) > Math.abs(dy);
-      touch.current.determined = true;
+    // 方向未確定 → 10px 以上動いてから判定
+    if (!p.determined && (Math.abs(dx) >= 10 || Math.abs(dy) >= 10)) {
+      p.swiping    = Math.abs(dx) > Math.abs(dy) && dx < 0; // 左スワイプのみ
+      p.determined = true;
+
+      if (p.swiping) {
+        // ポインターキャプチャ → ブラウザスクロールを止め、指が外れても追跡継続
+        try { outerRef.current?.setPointerCapture(p.id); } catch (_) { /* noop */ }
+      } else {
+        ptr.current = null; // 縦スクロール → 追跡を手放す
+        return;
+      }
     }
 
-    // 左スワイプのみ追跡
-    if (touch.current.horizontal && dx < 0) {
-      setSwipeX(Math.max(dx, -SWIPE_MAX));
+    if (p.swiping && dx < 0) {
+      const newX = Math.max(dx, -SWIPE_MAX_PX);
+      swipeXRef.current = newX;
+      setSwipeX(newX);
     }
   };
 
-  const onTouchEnd = () => {
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!ptr.current || e.pointerId !== ptr.current.id) return;
     cancelLP();
-    if (touch.current.horizontal && swipeX < -SWIPE_THRESHOLD) {
+
+    if (swipeXRef.current < -SWIPE_DELETE_PX) {
       deleteTask(task.id);
     } else {
-      setSwipeX(0); // スナップバック
+      setSwipeX(0); swipeXRef.current = 0;
     }
-    touch.current.horizontal = false;
-    touch.current.determined = false;
+    ptr.current = null;
   };
 
-  // PC: 右クリックでスケジュールモーダルを開く
+  const onPointerCancel = () => {
+    cancelLP();
+    setSwipeX(0); swipeXRef.current = 0;
+    ptr.current = null;
+  };
+
+  // PC: 右クリックでスケジュール登録
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     cancelLP();
     setScheduleOpen(true);
   };
 
-  const isDeleting = swipeX < -SWIPE_THRESHOLD;
+  const isDeleting = swipeX < -SWIPE_DELETE_PX;
 
   return (
     <>
-      {/*
-        touch-action: pan-y を最初から設定する。
-        「縦スクロールはブラウザ、横方向はJSで処理」という契約をジェスチャー開始前に宣言。
-        動的に変更しても効果がないためここで固定する。
-      */}
       <div
+        ref={outerRef}
         className="relative overflow-hidden rounded-lg"
-        style={{ touchAction: 'pan-y' }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         onContextMenu={onContextMenu}
       >
         {/* スワイプ削除の赤背景 */}
@@ -127,12 +154,11 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
           <Trash2 className="w-5 h-5 text-white" />
         </div>
 
-        {/* カード本体（横にスライドする） */}
+        {/* カード本体（スライドする） */}
         <div
           ref={setNodeRef}
           style={{
             transform:  `translateX(${swipeX}px)`,
-            // swipeX=0 のとき（スナップバック）だけトランジションをかける
             transition: swipeX === 0
               ? 'transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)'
               : 'none',
@@ -144,7 +170,7 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
             isDragging && 'opacity-25',
           )}
         >
-          {/* ドラッグハンドル（DnD のリスナーはここだけ） */}
+          {/* ドラッグハンドル（@dnd-kit のリスナーはここだけ） */}
           <button
             ref={gripRef}
             {...attributes}
@@ -173,7 +199,7 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
             </div>
           </div>
 
-          {/* PC 用削除ボタン（ホバーで表示）/ スマホはスワイプで削除 */}
+          {/* PC: ホバーで表示される削除ボタン */}
           <button
             onPointerDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); deleteTask(task.id); }}
