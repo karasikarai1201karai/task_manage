@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { TASK_COLOR_MAP } from '@/lib/constants';
@@ -9,8 +9,9 @@ import { Clock, GripVertical, Trash2 } from 'lucide-react';
 import { QuickScheduleModal } from '@/components/modals/QuickScheduleModal';
 import type { Task } from '@/types';
 
-const SWIPE_THRESHOLD = 72; // この距離以上スワイプで削除
-const SWIPE_MAX       = 88; // スワイプの最大距離
+const SWIPE_THRESHOLD = 72;   // この距離を超えたら削除
+const SWIPE_MAX       = 88;   // スワイプの最大量
+const LONG_PRESS_MS   = 500;  // ロングプレス判定 (ms)
 
 interface InboxTaskCardProps {
   task: Task;
@@ -19,70 +20,82 @@ interface InboxTaskCardProps {
 
 export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
   const deleteTask = useStore(s => s.deleteTask);
-  const colorClass = TASK_COLOR_MAP[task.color];
+  const colorClass  = TASK_COLOR_MAP[task.color];
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { type: 'inbox', taskId: task.id },
   });
 
-  // スワイプ状態
-  const outerRef  = useRef<HTMLDivElement>(null);
-  const gripRef   = useRef<HTMLButtonElement>(null);
-  const touch     = useRef({ x: 0, y: 0, onHandle: false, determined: false, horizontal: false });
-  const [swipeX,        setSwipeX]        = useState(0);
-  const [scheduleOpen,  setScheduleOpen]  = useState(false);
+  const gripRef  = useRef<HTMLButtonElement>(null);
+  const touch    = useRef({ x: 0, y: 0, determined: false, horizontal: false });
+  const lpTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ドラッグ開始時にスワイプをリセット
+  const [swipeX,       setSwipeX]       = useState(0);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  // ドラッグ開始時はスワイプをリセット
   useEffect(() => { if (isDragging) setSwipeX(0); }, [isDragging]);
 
-  /* ── タッチハンドラ ── */
+  const cancelLP = useCallback(() => {
+    if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+  }, []);
+
+  /* ─── タッチハンドラ ─── */
   const onTouchStart = (e: React.TouchEvent) => {
-    if (outerRef.current) outerRef.current.style.touchAction = 'auto';
+    const onHandle = gripRef.current?.contains(e.target as Node) ?? false;
+
     touch.current = {
       x:          e.touches[0].clientX,
       y:          e.touches[0].clientY,
-      onHandle:   gripRef.current?.contains(e.target as Node) ?? false,
       determined: false,
       horizontal: false,
     };
+
+    // ハンドル以外の長押しでスケジュールモーダルを開く
+    if (!onHandle) {
+      lpTimer.current = setTimeout(() => {
+        navigator.vibrate?.(12);   // 触覚フィードバック（対応端末のみ）
+        setSwipeX(0);
+        setScheduleOpen(true);
+      }, LONG_PRESS_MS);
+    }
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    const t = touch.current;
-    if (t.onHandle) return;
+    const dx = e.touches[0].clientX - touch.current.x;
+    const dy = e.touches[0].clientY - touch.current.y;
 
-    const dx = e.touches[0].clientX - t.x;
-    const dy = e.touches[0].clientY - t.y;
+    // 少しでも動いたらロングプレスをキャンセル
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) cancelLP();
 
-    if (!t.determined && (Math.abs(dx) >= 5 || Math.abs(dy) >= 5)) {
-      t.horizontal  = Math.abs(dx) > Math.abs(dy);
-      t.determined  = true;
-      if (t.horizontal && outerRef.current) {
-        // 水平スワイプ確定 → ブラウザスクロールを止める
-        outerRef.current.style.touchAction = 'none';
-      }
+    // 方向を確定（8px 以上動いてから判定）
+    if (!touch.current.determined && (Math.abs(dx) >= 8 || Math.abs(dy) >= 8)) {
+      touch.current.horizontal = Math.abs(dx) > Math.abs(dy);
+      touch.current.determined = true;
     }
 
-    if (t.horizontal && dx < 0) {
+    // 左スワイプのみ追跡
+    if (touch.current.horizontal && dx < 0) {
       setSwipeX(Math.max(dx, -SWIPE_MAX));
     }
   };
 
   const onTouchEnd = () => {
-    if (outerRef.current) outerRef.current.style.touchAction = 'auto';
+    cancelLP();
     if (touch.current.horizontal && swipeX < -SWIPE_THRESHOLD) {
       deleteTask(task.id);
     } else {
       setSwipeX(0); // スナップバック
     }
-    touch.current.horizontal  = false;
-    touch.current.determined  = false;
+    touch.current.horizontal = false;
+    touch.current.determined = false;
   };
 
-  // 右クリック / ロングプレス → スケジュールモーダル
+  // PC: 右クリックでスケジュールモーダルを開く
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    cancelLP();
     setScheduleOpen(true);
   };
 
@@ -90,10 +103,14 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
 
   return (
     <>
-      {/* スワイプコンテナ */}
+      {/*
+        touch-action: pan-y を最初から設定する。
+        「縦スクロールはブラウザ、横方向はJSで処理」という契約をジェスチャー開始前に宣言。
+        動的に変更しても効果がないためここで固定する。
+      */}
       <div
-        ref={outerRef}
         className="relative overflow-hidden rounded-lg"
+        style={{ touchAction: 'pan-y' }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -110,12 +127,15 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
           <Trash2 className="w-5 h-5 text-white" />
         </div>
 
-        {/* カード本体（スライドする） */}
+        {/* カード本体（横にスライドする） */}
         <div
           ref={setNodeRef}
           style={{
             transform:  `translateX(${swipeX}px)`,
-            transition: swipeX === 0 ? 'transform 0.25s cubic-bezier(0.32,0.72,0,1)' : 'none',
+            // swipeX=0 のとき（スナップバック）だけトランジションをかける
+            transition: swipeX === 0
+              ? 'transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)'
+              : 'none',
           }}
           className={cn(
             'group relative z-10 flex items-center gap-2 p-2.5 rounded-lg border',
@@ -124,7 +144,7 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
             isDragging && 'opacity-25',
           )}
         >
-          {/* ドラッグハンドル */}
+          {/* ドラッグハンドル（DnD のリスナーはここだけ） */}
           <button
             ref={gripRef}
             {...attributes}
@@ -153,7 +173,7 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
             </div>
           </div>
 
-          {/* 削除ボタン（PC: ホバーで表示 / スマホ: スワイプで削除） */}
+          {/* PC 用削除ボタン（ホバーで表示）/ スマホはスワイプで削除 */}
           <button
             onPointerDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); deleteTask(task.id); }}
@@ -165,7 +185,6 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
         </div>
       </div>
 
-      {/* ロングプレス / 右クリックで開くスケジュールシート */}
       <QuickScheduleModal
         task={task}
         open={scheduleOpen}
