@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { useTimelineScale } from '@/hooks/useTimelineScale';
@@ -25,6 +26,12 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
     disabled: task.status === 'completed',
   });
 
+  // ドラッグ終了直後の click イベントで誤完了するのを防ぐフラグ
+  const wasDragging = useRef(false);
+  useEffect(() => {
+    if (isDragging) wasDragging.current = true;
+  }, [isDragging]);
+
   const isCompleted = task.status === 'completed';
   const top         = toTop(slot.startTime);
   const height      = Math.max(toHeight(task.estimatedMinutes), 24);
@@ -45,7 +52,7 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
         isDragging && 'opacity-25 cursor-grabbing',
       )}
       onClick={() => {
-        if (isDragging) return;
+        if (wasDragging.current) { wasDragging.current = false; return; }
         if (isCompleted) uncompleteTask(task.id);
         else completeTask(task.id);
       }}

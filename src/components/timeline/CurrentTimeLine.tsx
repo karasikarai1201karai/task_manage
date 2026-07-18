@@ -16,12 +16,17 @@ export function CurrentTimeLine({ dayStartHour }: CurrentTimeLineProps) {
   useEffect(() => {
     setNow(new Date());
     const msToNextMinute = 60000 - (Date.now() % 60000);
-    const t = setTimeout(() => {
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const timeoutId = setTimeout(() => {
       setNow(new Date());
-      const interval = setInterval(() => setNow(new Date()), 60000);
-      return () => clearInterval(interval);
+      intervalId = setInterval(() => setNow(new Date()), 60000);
     }, msToNextMinute);
-    return () => clearTimeout(t);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
   }, []);
 
   if (!now) return null;

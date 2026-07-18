@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { useStore } from '@/store/appStore';
@@ -29,6 +29,17 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
   const [destination,  setDestination]  = useState<'inbox' | 'timeline'>(
     defaultStartTime ? 'timeline' : 'inbox'
   );
+
+  // モーダルを開くたびにフォームをリセット（キャンセル後に前回の入力が残らないようにする）
+  useEffect(() => {
+    if (!open) return;
+    setTitle('');
+    setMinutes(config.defaultTaskDuration);
+    setColor('blue');
+    setStartTime(defaultStartTime ?? '');
+    setDestination(defaultStartTime ? 'timeline' : 'inbox');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const isValid = title.trim().length > 0 && (destination === 'inbox' || startTime !== '');
 
