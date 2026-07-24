@@ -85,7 +85,8 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
       }}
       className={cn(
         'absolute left-1 right-2 rounded-lg border px-2 py-1 overflow-hidden select-none',
-        'transition-opacity duration-300',
+        'transition-all duration-200',
+        !isDragging && 'hover:scale-[1.02] hover:shadow-md',
         colorClass,
         isCompleted && !isCompleting && 'opacity-50',
         isCompleted
