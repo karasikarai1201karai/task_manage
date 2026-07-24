@@ -6,6 +6,7 @@ import { useStore } from '@/store/appStore';
 import { useTimelineScale } from '@/hooks/useTimelineScale';
 import { TASK_COLOR_MAP } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { addMinutesToTime } from '@/lib/utils/time';
 import { Check } from 'lucide-react';
 import type { Task, ScheduledSlot } from '@/types';
 
@@ -19,6 +20,29 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
   const { toTop, toHeight } = useTimelineScale(dayStartHour);
   const completeTask   = useStore(s => s.completeTask);
   const uncompleteTask = useStore(s => s.uncompleteTask);
+
+  const extendTask = (minutes: number) => {
+    const newEstimatedMinutes = task.estimatedMinutes + minutes;
+    const newEndTime = addMinutesToTime(slot.startTime, newEstimatedMinutes);
+    useStore.setState(s => {
+      const plan = s.dayPlans[slot.date];
+      if (!plan) return s;
+      return {
+        tasks: s.tasks.map(t =>
+          t.id === task.id ? { ...t, estimatedMinutes: newEstimatedMinutes, updatedAt: new Date().toISOString() } : t
+        ),
+        dayPlans: {
+          ...s.dayPlans,
+          [slot.date]: {
+            ...plan,
+            slots: plan.slots.map(sl => sl.taskId === task.id ? { ...sl, endTime: newEndTime } : sl),
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+    });
+    useStore.getState().saveToStorage();
+  };
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `scheduled-${task.id}`,
@@ -102,7 +126,24 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
         </span>
       </div>
       {height >= 44 && (
-        <p className="text-xs opacity-60 mt-0.5 ml-5.5">{task.estimatedMinutes}分</p>
+        <div className="flex items-center gap-1.5 mt-0.5 ml-5.5">
+          <p className="text-xs opacity-60">{task.estimatedMinutes}分</p>
+          {!isCompleted && (
+            <div className="flex items-center gap-1 ml-auto">
+              {[15, 30].map(minutes => (
+                <button
+                  key={minutes}
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); extendTask(minutes); }}
+                  className="text-[10px] leading-none px-1 py-0.5 rounded bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 opacity-60 hover:opacity-100 transition-opacity"
+                  aria-label={`${minutes}分延長`}
+                >
+                  +{minutes}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
