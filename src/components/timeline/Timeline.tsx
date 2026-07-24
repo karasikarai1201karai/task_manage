@@ -14,9 +14,10 @@ import type { TimeString } from '@/types';
 
 interface TimelineProps {
   scrollRef?: React.RefObject<HTMLDivElement>;
+  highlightTaskId?: string | null;
 }
 
-export function Timeline({ scrollRef }: TimelineProps) {
+export function Timeline({ scrollRef, highlightTaskId }: TimelineProps) {
   const tasks       = useStore(s => s.tasks);
   const dayPlans    = useStore(s => s.dayPlans);
   const config      = useStore(s => s.config);
@@ -122,6 +123,7 @@ export function Timeline({ scrollRef }: TimelineProps) {
                 task={task}
                 slot={slot}
                 dayStartHour={config.dayStartHour}
+                isHighlighted={task.id === highlightTaskId}
               />
             );
           })}

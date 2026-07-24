@@ -14,9 +14,10 @@ interface TaskBlockProps {
   task: Task;
   slot: ScheduledSlot;
   dayStartHour: number;
+  isHighlighted?: boolean;
 }
 
-export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
+export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlockProps) {
   const { toTop, toHeight } = useTimelineScale(dayStartHour);
   const completeTask   = useStore(s => s.completeTask);
   const uncompleteTask = useStore(s => s.uncompleteTask);
@@ -76,6 +77,7 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
       {...attributes}
       {...(!isCompleted ? listeners : {})}
       data-timeline-block
+      data-task-id={task.id}
       style={{
         top: `${top}px`,
         height: `${height}px`,
@@ -91,6 +93,7 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
           : 'cursor-grab active:cursor-grabbing',
         isCompleting && 'animate-task-complete-bounce',
         isDragging && 'opacity-25 cursor-grabbing',
+        isHighlighted && 'ring-2 ring-blue-400 ring-offset-1',
       )}
       onClick={() => {
         if (wasDragging.current) { wasDragging.current = false; return; }

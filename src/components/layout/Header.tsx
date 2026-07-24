@@ -2,16 +2,17 @@
 
 import { format, addDays, subDays, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Zap } from 'lucide-react';
 import { useStore } from '@/store/appStore';
 import { today } from '@/lib/utils/time';
 import type { DateString } from '@/types';
 
 interface HeaderProps {
   onSettingsClick: () => void;
+  onNowClick: () => void;
 }
 
-export function Header({ onSettingsClick }: HeaderProps) {
+export function Header({ onSettingsClick, onNowClick }: HeaderProps) {
   const currentDate    = useStore(s => s.currentDate);
   const setCurrentDate = useStore(s => s.setCurrentDate);
 
@@ -58,13 +59,23 @@ export function Header({ onSettingsClick }: HeaderProps) {
         </button>
       </div>
 
-      <button
-        onClick={onSettingsClick}
-        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        aria-label="設定"
-      >
-        <Settings className="w-5 h-5" />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onNowClick}
+          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors"
+        >
+          <Zap className="w-3.5 h-3.5" />
+          今すぐ
+        </button>
+
+        <button
+          onClick={onSettingsClick}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="設定"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+      </div>
     </header>
   );
 }
