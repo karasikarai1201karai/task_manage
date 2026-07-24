@@ -3,7 +3,9 @@
 import { create } from 'zustand';
 import type { AppStore, Task, DayPlan, DateString, TimeString, StoredData, ScheduledSlot } from '@/types';
 import { DEFAULT_CONFIG } from '@/lib/constants';
-import { getStorageAdapter } from '@/lib/storage';
+import { getStorageAdapter, setStorageAdapter } from '@/lib/storage';
+import { LocalStorageAdapter } from '@/lib/storage/localStorageAdapter';
+import { CloudflareKVAdapter } from '@/lib/storage/cloudflareKVAdapter';
 import { today, addMinutesToTime } from '@/lib/utils/time';
 import { getRolledOverTasks } from '@/lib/utils/rollover';
 
@@ -16,12 +18,30 @@ export const useStore = create<AppStore>((set, get) => ({
   pendingDelete: null,
 
   loadFromStorage: async () => {
-    const adapter = getStorageAdapter();
-    const data = await adapter.load();
+    // フェーズ1: localStorage から読んで syncKey / workerUrl を確認
+    const localAdapter = new LocalStorageAdapter();
+    const localData = await localAdapter.load();
+    const localConfig = { ...DEFAULT_CONFIG, ...(localData.config ?? {}) };
+
+    // フェーズ2: syncKey が設定されていれば KV アダプターに切り替え
+    let data = localData;
+    if (localConfig.syncKey && localConfig.workerUrl) {
+      const kvAdapter = new CloudflareKVAdapter(localConfig.syncKey, localConfig.workerUrl);
+      setStorageAdapter(kvAdapter);
+      data = await kvAdapter.load();
+    } else {
+      setStorageAdapter(localAdapter);
+    }
 
     const tasks = data.tasks ?? [];
     const dayPlans = (data.dayPlans ?? {}) as Record<string, DayPlan>;
-    const config = { ...DEFAULT_CONFIG, ...(data.config ?? {}) };
+    // syncKey / workerUrl はローカルの値を優先（KV には送っていないため）
+    const config = {
+      ...DEFAULT_CONFIG,
+      ...(data.config ?? {}),
+      syncKey: localConfig.syncKey,
+      workerUrl: localConfig.workerUrl,
+    };
     const lastVisitedDate = data.lastVisitedDate ?? today();
 
     set({ tasks, dayPlans, config, isLoaded: true });

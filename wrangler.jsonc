@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "any-planner-sync",
+  "main": "workers/sync.ts",
+  "compatibility_date": "2025-01-01",
+  "kv_namespaces": [
+    {
+      "binding": "KV"
+      // id は wrangler deploy 時に自動生成されてここに書き込まれます
+    }
+  ]
+}

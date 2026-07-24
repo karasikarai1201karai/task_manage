@@ -2,9 +2,10 @@
 
 import { useState, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Sun, Moon, Monitor, Download, Upload } from 'lucide-react';
+import { X, Sun, Moon, Monitor, Download, Upload, RefreshCw, Wifi } from 'lucide-react';
 import { useStore } from '@/store/appStore';
 import { getStorageAdapter } from '@/lib/storage';
+import { testKVConnection } from '@/lib/storage/cloudflareKVAdapter';
 import { cn } from '@/lib/utils';
 import type { AppConfig, StoredData } from '@/types';
 
@@ -87,6 +88,31 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [syncStatus, setSyncStatus] = useState<string>('');
+  const [syncing, setSyncing] = useState(false);
+
+  const handleTestConnection = async () => {
+    if (!config.syncKey || !config.workerUrl) {
+      setSyncStatus('URLとキーを入力してください');
+      return;
+    }
+    setSyncStatus('接続確認中…');
+    const result = await testKVConnection(config.syncKey, config.workerUrl);
+    if (result === 'error') setSyncStatus('接続失敗 — URLまたはキーを確認してください');
+    else setSyncStatus('接続成功');
+    setTimeout(() => setSyncStatus(''), 5000);
+  };
+
+  const handleSyncNow = async () => {
+    if (!config.syncKey || !config.workerUrl) return;
+    setSyncing(true);
+    setSyncStatus('同期中…');
+    await loadFromStorage();
+    setSyncing(false);
+    setSyncStatus('同期しました');
+    setTimeout(() => setSyncStatus(''), 3000);
+  };
 
   const handleExport = async () => {
     const data = await getStorageAdapter().load();
@@ -233,6 +259,71 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
                 アプリを開いた際、前日の未完了タスクをインボックスに追加します
+              </p>
+            </section>
+
+            {/* 同期 */}
+            <section className="mb-5">
+              <SectionLabel>端末間同期</SectionLabel>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Workers URL
+                  </label>
+                  <input
+                    type="url"
+                    value={config.workerUrl}
+                    onChange={e => set({ workerUrl: e.target.value })}
+                    placeholder="https://any-planner-sync.xxxx.workers.dev"
+                    className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    同期キー
+                  </label>
+                  <input
+                    type="password"
+                    value={config.syncKey}
+                    onChange={e => set({ syncKey: e.target.value })}
+                    placeholder="12文字以上のパスフレーズ"
+                    className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {config.syncKey.length > 0 && config.syncKey.length < 12 && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                      ⚠ 12文字以上のキーを推奨します
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleTestConnection}
+                  disabled={!config.syncKey || !config.workerUrl}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+                >
+                  <Wifi className="w-3.5 h-3.5" />
+                  接続テスト
+                </button>
+                <button
+                  onClick={handleSyncNow}
+                  disabled={!config.syncKey || !config.workerUrl || syncing}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+                >
+                  <RefreshCw className={cn('w-3.5 h-3.5', syncing && 'animate-spin')} />
+                  今すぐ同期
+                </button>
+              </div>
+              {syncStatus && (
+                <p className={cn(
+                  'text-xs mt-2 text-center',
+                  syncStatus.includes('失敗') ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400',
+                )}>
+                  {syncStatus}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
+                同じキーを別の端末に入力すると自動的に同期します
               </p>
             </section>
 

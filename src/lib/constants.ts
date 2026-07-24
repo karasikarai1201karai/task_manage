@@ -7,6 +7,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   timeFormat: '24h',
   defaultTaskDuration: 30,
   autoRollover: true,
+  syncKey: '',
+  workerUrl: '',
 };
 
 export const TASK_COLOR_MAP: Record<TaskColor, string> = {

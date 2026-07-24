@@ -44,6 +44,8 @@ export interface AppConfig {
   timeFormat: '12h' | '24h';
   defaultTaskDuration: number;
   autoRollover: boolean;
+  syncKey: string;
+  workerUrl: string;
 }
 
 export interface PendingDelete {
