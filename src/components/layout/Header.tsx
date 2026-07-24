@@ -26,26 +26,36 @@ export function Header({ onSettingsClick }: HeaderProps) {
       className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0"
       style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
     >
-      <button
-        onClick={() => goTo(subDays(date, 1))}
-        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        aria-label="前日"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => goTo(subDays(date, 1))}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="前日"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
 
-      <div className="flex items-center gap-2">
-        <h1 className="text-base font-semibold">
-          {format(date, 'M月d日(EEE)', { locale: ja })}
-        </h1>
-        {!isToday && (
-          <button
-            onClick={() => goTo(new Date())}
-            className="text-xs px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
-          >
-            今日
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <h1 className="text-base font-semibold">
+            {format(date, 'M月d日(EEE)', { locale: ja })}
+          </h1>
+          {!isToday && (
+            <button
+              onClick={() => goTo(new Date())}
+              className="text-xs px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
+            >
+              今日
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => goTo(addDays(date, 1))}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="翌日"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
       </div>
 
       <button
