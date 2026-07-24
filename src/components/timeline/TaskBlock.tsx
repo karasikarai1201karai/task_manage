@@ -44,6 +44,7 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
   const top         = toTop(slot.startTime);
   const height      = Math.max(toHeight(task.estimatedMinutes), 24);
   const colorClass  = TASK_COLOR_MAP[task.color];
+  const isCompact    = height < 44;
 
   return (
     <div
@@ -93,7 +94,8 @@ export function TaskBlock({ task, slot, dayStartHour }: TaskBlockProps) {
           )}
         </div>
         <span className={cn(
-          'text-xs font-medium leading-tight line-clamp-2',
+          'font-medium leading-tight',
+          isCompact ? 'text-[10px] line-clamp-1' : 'text-xs line-clamp-2',
           isCompleted && !isCompleting && 'line-through',
         )}>
           {task.title}
