@@ -15,12 +15,21 @@ interface HeaderProps {
 export function Header({ onSettingsClick, onNowClick }: HeaderProps) {
   const currentDate    = useStore(s => s.currentDate);
   const setCurrentDate = useStore(s => s.setCurrentDate);
+  const tasks           = useStore(s => s.tasks);
+  const dayPlans        = useStore(s => s.dayPlans);
 
   const date    = parseISO(currentDate);
   const isToday = currentDate === today();
 
   const goTo = (d: Date) =>
     setCurrentDate(format(d, 'yyyy-MM-dd') as DateString);
+
+  const todaySlots = dayPlans[currentDate]?.slots ?? [];
+  const totalCount = todaySlots.length;
+  const completedCount = todaySlots.filter(slot => {
+    const task = tasks.find(t => t.id === slot.taskId);
+    return task?.status === 'completed';
+  }).length;
 
   return (
     <header
@@ -47,6 +56,19 @@ export function Header({ onSettingsClick, onNowClick }: HeaderProps) {
             >
               今日
             </button>
+          )}
+          {totalCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-10 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-300"
+                  style={{ width: `${(completedCount / totalCount) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                {completedCount}/{totalCount}
+              </span>
+            </div>
           )}
         </div>
 

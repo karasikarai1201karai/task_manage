@@ -8,11 +8,11 @@ AIへ: このファイルから **未着手のタスクを1つ** 選んで実装
 
 ## S サイズ（30分以内・最優先）
 
-（現在なし）
+- [ ] タスク完了時に軽い振動フィードバックを追加する（`InboxTaskCard.tsx` の長押し時と同様に `navigator.vibrate?.(...)` を `TaskBlock.tsx` の `completeTask` 呼び出し時にも追加）
 
 ## M サイズ（1〜2時間）
 
-（現在なし）
+- [ ] 繰り返しタスクのテンプレート編集機能: `SettingsModal.tsx` の繰り返しタスク一覧から既存テンプレートを編集できるようにする（現状は削除のみ）。`TaskEditModal.tsx` に近いUIを流用し、`recurringStorage.ts` に `updateRecurringTemplate()` を追加
 
 ## L サイズ（複数サイクル）
 
