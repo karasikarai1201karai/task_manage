@@ -28,3 +28,10 @@ AIが実装を完了したタスクをここに記録する。
 [DONE 2026-07-26] feat: ヘッダー進捗バーの分母を「開始時刻を過ぎたタスクのみ」に変更。当日は未来のタスクを含めないため、朝から夜のタスク分だけ低い数値が表示され続ける問題を解消（過去日/未来日は従来通り全件）
 [DONE 2026-07-26] feat: 優先度をUIに反映。InboxTaskCardに左端の優先度カラーバーを追加し、InboxPanelのinboxTasksを優先度→所要時間の順でソート。PRIORITY_RANK/PRIORITY_BAR_COLORをconstants.tsに追加
 [DONE 2026-07-26] style: 空き時間30分未満の色を赤からグレー系の中立色に変更（短い空き時間は本来中立な情報であり、常時視界に入る赤が不安を煽る可能性への対応）
+[DONE 2026-07-26] refactor: TaskFormModalの決断項目を削減。色・繰り返し・追加先・開始時刻を初期状態で折りたたんだ「詳細設定」に格納し、主経路をタイトル＋所要時間＋送信のみに（タイムライン背景タップ経由でdefaultStartTimeが渡された場合は自動展開）
+[DONE 2026-07-26] feat: 繰り返しタスクのテンプレート編集機能を追加。RecurringTemplateEditModal.tsxを新設し、recurringStorage.tsにupdateRecurringTemplate()を追加。SettingsModalのテンプレート一覧に編集ボタンを追加
+[DONE 2026-07-26] feat: インボックスにクイック追加入力欄を追加。タイトルのみ入力してEnterで即座に追加（所要時間・色はデフォルト値）
+[DONE 2026-07-26] feat: 繰越タスクに「今日はやらない」アクションを追加。Taskに`isDeferred`フィールドを追加し、既存の`updateTask`アクションで更新。InboxPanelに「保留中」の折りたたみセクションを新設（削除ではなく保留として退避、復元・削除が可能）
+[DONE 2026-07-26] feat: 「進行中(in-progress)」状態をTaskBlockで使えるように。チェックボックスとは別のCircleDotボタンでpending⇄in-progressを切替、進行中はチェックボックスを破線＋ドット表示に
+[DONE 2026-07-26] feat: タスク開始時刻の通知を追加。AppConfigに`notifyOnTaskStart`を追加し、SettingsModalでオプトイン（Notification.requestPermission）。AppShellの60秒間隔チェックで開始時刻に達したタスクをNotification+vibrateで通知（タブを開いている間のみ有効）
+[DONE 2026-07-26] feat: タスク完了直後に次の未完了タスクへの導線を追加。tasksの変化を監視してpending/in-progress→completedへの遷移を検知し、handleNowClickと共通化したfindClosestIncompleteTaskId()で次のタスクを数秒間ハイライト

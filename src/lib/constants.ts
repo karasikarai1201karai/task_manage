@@ -9,6 +9,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   autoRollover: true,
   syncKey: '',
   workerUrl: '',
+  notifyOnTaskStart: false,
 };
 
 export const TASK_COLOR_MAP: Record<TaskColor, string> = {

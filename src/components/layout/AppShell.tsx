@@ -26,7 +26,29 @@ import { today, timeToMinutes } from '@/lib/utils/time';
 import { materializeRecurringTasks } from '@/lib/utils/recurring';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, TimeString } from '@/types';
+import type { Task, TimeString, ScheduledSlot } from '@/types';
+
+function getNowMinutes(): number {
+  return timeToMinutes(
+    `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}` as TimeString,
+  );
+}
+
+function findClosestIncompleteTaskId(
+  slots: ScheduledSlot[],
+  tasks: Task[],
+  nowMinutes: number,
+): string | null {
+  let closestTaskId: string | null = null;
+  let closestDiff = Infinity;
+  slots.forEach(slot => {
+    const task = tasks.find(t => t.id === slot.taskId);
+    if (!task || task.status === 'completed') return;
+    const diff = Math.abs(timeToMinutes(slot.startTime) - nowMinutes);
+    if (diff < closestDiff) { closestDiff = diff; closestTaskId = slot.taskId; }
+  });
+  return closestTaskId;
+}
 
 export function AppShell() {
   const [activeTab,       setActiveTab]       = useState<'inbox' | 'timeline'>('timeline');
@@ -107,18 +129,7 @@ export function AppShell() {
     const plan = dayPlans[targetDate];
     if (!plan || plan.slots.length === 0) return;
 
-    const nowMinutes = timeToMinutes(
-      `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}` as TimeString,
-    );
-
-    let closestTaskId: string | null = null;
-    let closestDiff = Infinity;
-    plan.slots.forEach(slot => {
-      const task = tasks.find(t => t.id === slot.taskId);
-      if (!task || task.status === 'completed') return;
-      const diff = Math.abs(timeToMinutes(slot.startTime) - nowMinutes);
-      if (diff < closestDiff) { closestDiff = diff; closestTaskId = slot.taskId; }
-    });
+    const closestTaskId = findClosestIncompleteTaskId(plan.slots, tasks, getNowMinutes());
     if (!closestTaskId) return;
 
     setHighlightTaskId(closestTaskId);
@@ -128,6 +139,55 @@ export function AppShell() {
     });
     setTimeout(() => setHighlightTaskId(null), 2500);
   }, [currentDate, dayPlans, tasks, setCurrentDate, getActiveScrollEl]);
+
+  // タスク開始時刻の通知（オプトイン・タブを開いている間のみ有効）
+  const notifiedTaskIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!config.notifyOnTaskStart) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+
+    const checkStartTimes = () => {
+      if (Notification.permission !== 'granted') return;
+      const plan = dayPlans[today()];
+      if (!plan) return;
+      const nowMinutes = getNowMinutes();
+      plan.slots.forEach(slot => {
+        if (notifiedTaskIdsRef.current.has(slot.taskId)) return;
+        const task = tasks.find(t => t.id === slot.taskId);
+        if (!task || task.status === 'completed') return;
+        const startMinutes = timeToMinutes(slot.startTime);
+        if (nowMinutes >= startMinutes && nowMinutes - startMinutes < 2) {
+          notifiedTaskIdsRef.current.add(slot.taskId);
+          new Notification('タスクの時間です', { body: task.title });
+          navigator.vibrate?.(200);
+        }
+      });
+    };
+
+    checkStartTimes();
+    const intervalId = setInterval(checkStartTimes, 60000);
+    return () => clearInterval(intervalId);
+  }, [config.notifyOnTaskStart, dayPlans, tasks]);
+
+  // 完了直後に次の未完了タスクを数秒間ハイライト（完了の勢いを次に繋げる）
+  const prevTasksRef = useRef(tasks);
+  useEffect(() => {
+    const prevTasks = prevTasksRef.current;
+    const plan = dayPlans[currentDate];
+    const justCompleted = plan?.slots.some(slot => {
+      const task = tasks.find(t => t.id === slot.taskId);
+      const prevTask = prevTasks.find(t => t.id === slot.taskId);
+      return task?.status === 'completed' && prevTask && prevTask.status !== 'completed';
+    });
+    prevTasksRef.current = tasks;
+    if (!justCompleted || !plan) return;
+
+    const closestTaskId = findClosestIncompleteTaskId(plan.slots, tasks, getNowMinutes());
+    if (!closestTaskId) return;
+
+    setHighlightTaskId(closestTaskId);
+    setTimeout(() => setHighlightTaskId(null), 2500);
+  }, [tasks, dayPlans, currentDate]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),

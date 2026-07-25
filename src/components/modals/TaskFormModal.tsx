@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import { useStore } from '@/store/appStore';
 import { TASK_COLORS } from '@/types';
 import { TASK_COLOR_DOT } from '@/lib/constants';
@@ -42,6 +42,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
   const [isRecurring,    setIsRecurring]    = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('daily');
   const [weeklyDay,      setWeeklyDay]      = useState(new Date().getDay());
+  const [showDetails,    setShowDetails]    = useState(!!defaultStartTime);
 
   // モーダルを開くたびにフォームをリセット（キャンセル後に前回の入力が残らないようにする）
   useEffect(() => {
@@ -54,6 +55,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     setIsRecurring(false);
     setRecurrenceType('daily');
     setWeeklyDay(new Date().getDay());
+    setShowDetails(!!defaultStartTime);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -163,130 +165,146 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
               </div>
             </div>
 
-            {/* 色選択 */}
+            {/* 詳細設定（折りたたみ） */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                カラー
-              </label>
-              <div className="flex gap-2.5">
-                {TASK_COLORS.map(c => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
-                    className={cn(
-                      'w-7 h-7 rounded-full border-2 transition-transform',
-                      TASK_COLOR_DOT[c],
-                      color === c
-                        ? 'border-gray-700 dark:border-white scale-125'
-                        : 'border-transparent scale-100',
-                    )}
-                    aria-label={c}
-                  />
-                ))}
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={() => setShowDetails(v => !v)}
+                className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                <ChevronRight className={cn('w-3.5 h-3.5 transition-transform', showDetails && 'rotate-90')} />
+                詳細設定（色・繰り返し・追加先）
+              </button>
 
-            {/* 繰り返し */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  繰り返し
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsRecurring(v => !v)}
-                  className={cn(
-                    'text-xs px-2.5 py-1 rounded-lg border transition-colors',
-                    isRecurring
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
-                  )}
-                >
-                  {isRecurring ? 'ON' : 'OFF'}
-                </button>
-              </div>
-              {isRecurring && (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    {RECURRENCE_OPTIONS.map(opt => (
+              {showDetails && (
+                <div className="space-y-4 mt-3">
+                  {/* 色選択 */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                      カラー
+                    </label>
+                    <div className="flex gap-2.5">
+                      {TASK_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setColor(c)}
+                          className={cn(
+                            'w-7 h-7 rounded-full border-2 transition-transform',
+                            TASK_COLOR_DOT[c],
+                            color === c
+                              ? 'border-gray-700 dark:border-white scale-125'
+                              : 'border-transparent scale-100',
+                          )}
+                          aria-label={c}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 繰り返し */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        繰り返し
+                      </label>
                       <button
-                        key={opt.value}
                         type="button"
-                        onClick={() => setRecurrenceType(opt.value)}
+                        onClick={() => setIsRecurring(v => !v)}
                         className={cn(
-                          'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
-                          recurrenceType === opt.value
+                          'text-xs px-2.5 py-1 rounded-lg border transition-colors',
+                          isRecurring
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
                         )}
                       >
-                        {opt.label}
+                        {isRecurring ? 'ON' : 'OFF'}
                       </button>
-                    ))}
+                    </div>
+                    {isRecurring && (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          {RECURRENCE_OPTIONS.map(opt => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setRecurrenceType(opt.value)}
+                              className={cn(
+                                'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
+                                recurrenceType === opt.value
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
+                              )}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                        {recurrenceType === 'weekly' && (
+                          <div className="flex gap-1">
+                            {WEEKDAY_LABELS.map((label, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setWeeklyDay(i)}
+                                className={cn(
+                                  'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
+                                  weeklyDay === i
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
+                                )}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {recurrenceType === 'weekly' && (
-                    <div className="flex gap-1">
-                      {WEEKDAY_LABELS.map((label, i) => (
+
+                  {/* 追加先 */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                      追加先
+                    </label>
+                    <div className="flex gap-2">
+                      {(['inbox', 'timeline'] as const).map(dest => (
                         <button
-                          key={i}
+                          key={dest}
                           type="button"
-                          onClick={() => setWeeklyDay(i)}
+                          onClick={() => setDestination(dest)}
                           className={cn(
                             'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
-                            weeklyDay === i
+                            destination === dest
                               ? 'bg-blue-600 text-white border-blue-600'
                               : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
                           )}
                         >
-                          {label}
+                          {dest === 'inbox' ? 'インボックス' : 'タイムライン'}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* 開始時刻（タイムライン選択時のみ） */}
+                  {destination === 'timeline' && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                        開始時刻 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        step={900}
+                        value={startTime}
+                        onChange={e => setStartTime(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
                   )}
                 </div>
               )}
             </div>
-
-            {/* 追加先 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                追加先
-              </label>
-              <div className="flex gap-2">
-                {(['inbox', 'timeline'] as const).map(dest => (
-                  <button
-                    key={dest}
-                    type="button"
-                    onClick={() => setDestination(dest)}
-                    className={cn(
-                      'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
-                      destination === dest
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
-                    )}
-                  >
-                    {dest === 'inbox' ? 'インボックス' : 'タイムライン'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 開始時刻（タイムライン選択時のみ） */}
-            {destination === 'timeline' && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                  開始時刻 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="time"
-                  step={900}
-                  value={startTime}
-                  onChange={e => setStartTime(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
 
             <button
               type="submit"

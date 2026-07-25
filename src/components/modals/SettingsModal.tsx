@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Sun, Moon, Monitor, Download, Upload, RefreshCw, Wifi, Repeat, Trash2 } from 'lucide-react';
+import { X, Sun, Moon, Monitor, Download, Upload, RefreshCw, Wifi, Repeat, Trash2, Pencil } from 'lucide-react';
 import { useStore } from '@/store/appStore';
 import { getStorageAdapter } from '@/lib/storage';
 import { testKVConnection } from '@/lib/storage/cloudflareKVAdapter';
-import { loadRecurringTemplates, deleteRecurringTemplate } from '@/lib/utils/recurringStorage';
+import { loadRecurringTemplates, deleteRecurringTemplate, updateRecurringTemplate } from '@/lib/utils/recurringStorage';
+import { RecurringTemplateEditModal, type RecurringTemplateEditValues } from './RecurringTemplateEditModal';
 import { cn } from '@/lib/utils';
 import type { AppConfig, StoredData, RecurringTemplate } from '@/types';
 
@@ -101,6 +102,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [syncing, setSyncing] = useState(false);
 
   const [recurringTemplates, setRecurringTemplates] = useState<RecurringTemplate[]>([]);
+  const [editingTemplate, setEditingTemplate] = useState<RecurringTemplate | null>(null);
 
   useEffect(() => {
     if (open) setRecurringTemplates(loadRecurringTemplates());
@@ -108,6 +110,19 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const handleDeleteTemplate = (id: string) => {
     setRecurringTemplates(deleteRecurringTemplate(id));
+  };
+
+  const handleSaveTemplate = (updates: RecurringTemplateEditValues) => {
+    if (!editingTemplate) return;
+    setRecurringTemplates(updateRecurringTemplate(editingTemplate.id, updates));
+  };
+
+  const handleNotifyToggle = async (checked: boolean) => {
+    if (checked && typeof window !== 'undefined' && 'Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+    }
+    set({ notifyOnTaskStart: checked });
   };
 
   const handleTestConnection = async () => {
@@ -162,6 +177,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   return (
+    <>
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50 animate-in fade-in" />
@@ -280,6 +296,22 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </p>
             </section>
 
+            {/* 通知 */}
+            <section className="mb-5">
+              <SectionLabel>通知</SectionLabel>
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4">
+                <SettingRow label="タスク開始時刻に通知">
+                  <Toggle
+                    checked={!!config.notifyOnTaskStart}
+                    onChange={handleNotifyToggle}
+                  />
+                </SettingRow>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
+                このタブを開いている間のみ有効です（バックグラウンド通知は不可）
+              </p>
+            </section>
+
             {/* 繰り返しタスク */}
             <section className="mb-5">
               <SectionLabel>繰り返しタスク</SectionLabel>
@@ -301,13 +333,22 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteTemplate(t.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                        aria-label="削除"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => setEditingTemplate(t)}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                          aria-label="編集"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTemplate(t.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors"
+                          aria-label="削除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -423,5 +464,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+
+    {editingTemplate && (
+      <RecurringTemplateEditModal
+        template={editingTemplate}
+        open={!!editingTemplate}
+        onClose={() => setEditingTemplate(null)}
+        onSave={handleSaveTemplate}
+      />
+    )}
+    </>
   );
 }

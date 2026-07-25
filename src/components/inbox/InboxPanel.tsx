@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, ChevronDown, Check, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, Check, Trash2, RotateCcw } from 'lucide-react';
 import { useStore } from '@/store/appStore';
 import { TASK_COLOR_MAP, PRIORITY_RANK } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -35,20 +35,67 @@ function CompletedTaskRow({ task }: { task: Task }) {
   );
 }
 
+function DeferredTaskRow({ task }: { task: Task }) {
+  const updateTask = useStore(s => s.updateTask);
+  const deleteTask  = useStore(s => s.deleteTask);
+  const colorClass  = TASK_COLOR_MAP[task.color];
+
+  return (
+    <div className={cn('group flex items-center gap-2 p-2 rounded-lg border opacity-70', colorClass)}>
+      <p className="flex-1 min-w-0 text-xs truncate">{task.title}</p>
+      <button
+        onClick={() => updateTask(task.id, { isDeferred: false })}
+        className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+        aria-label="インボックスに戻す"
+        title="インボックスに戻す"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={() => deleteTask(task.id)}
+        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+        aria-label="削除"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export function InboxPanel() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [showDeferred, setShowDeferred] = useState(false);
+  const [quickTitle, setQuickTitle] = useState('');
 
   const tasks       = useStore(s => s.tasks);
   const dayPlans    = useStore(s => s.dayPlans);
   const currentDate = useStore(s => s.currentDate);
+  const config      = useStore(s => s.config);
+  const addTask     = useStore(s => s.addTask);
+
+  const handleQuickAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = quickTitle.trim();
+    if (!title) return;
+    addTask({
+      id: crypto.randomUUID(),
+      title,
+      estimatedMinutes: config.defaultTaskDuration,
+      color: 'blue',
+      status: 'pending',
+      priority: 'medium',
+      tags: [],
+    });
+    setQuickTitle('');
+  };
 
   // 今日スケジュール済み or 完了済みのタスクをインボックスから除外
   const todayScheduledIds = new Set(
     (dayPlans[currentDate]?.slots ?? []).map(s => s.taskId)
   );
   const inboxTasks = tasks
-    .filter(t => !todayScheduledIds.has(t.id) && t.status !== 'completed')
+    .filter(t => !todayScheduledIds.has(t.id) && t.status !== 'completed' && !t.isDeferred)
     .sort((a, b) =>
       PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.estimatedMinutes - b.estimatedMinutes
     );
@@ -56,6 +103,8 @@ export function InboxPanel() {
   const completedTasks = tasks
     .filter(t => t.status === 'completed')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
+
+  const deferredTasks = tasks.filter(t => t.isDeferred && t.status !== 'completed');
 
   // 最短タスク = 次の空きに収まりやすい候補としてハイライト
   const minDuration  = inboxTasks.length > 0 ? Math.min(...inboxTasks.map(t => t.estimatedMinutes)) : null;
@@ -81,6 +130,17 @@ export function InboxPanel() {
           追加
         </button>
       </div>
+
+      {/* クイック追加 */}
+      <form onSubmit={handleQuickAdd} className="px-3 py-2 border-b border-gray-200 dark:border-gray-800 shrink-0">
+        <input
+          type="text"
+          value={quickTitle}
+          onChange={e => setQuickTitle(e.target.value)}
+          placeholder="タスクを入力してEnter"
+          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+        />
+      </form>
 
       {/* タスクリスト */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
@@ -113,6 +173,26 @@ export function InboxPanel() {
               <div className="space-y-1.5 mt-1">
                 {completedTasks.map(task => (
                   <CompletedTaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 保留中タスク（今日はやらない） */}
+        {deferredTasks.length > 0 && (
+          <div className="pt-1">
+            <button
+              onClick={() => setShowDeferred(v => !v)}
+              className="flex items-center gap-1 w-full px-1 py-1.5 text-xs text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+            >
+              <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', showDeferred && 'rotate-180')} />
+              保留中 ({deferredTasks.length})
+            </button>
+            {showDeferred && (
+              <div className="space-y-1.5 mt-1">
+                {deferredTasks.map(task => (
+                  <DeferredTaskRow key={task.id} task={task} />
                 ))}
               </div>
             )}

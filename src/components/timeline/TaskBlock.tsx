@@ -7,7 +7,7 @@ import { useTimelineScale } from '@/hooks/useTimelineScale';
 import { TASK_COLOR_MAP } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { addMinutesToTime } from '@/lib/utils/time';
-import { Check, Pencil } from 'lucide-react';
+import { Check, Pencil, CircleDot } from 'lucide-react';
 import { TaskEditModal, type TaskEditValues } from '@/components/modals/TaskEditModal';
 import type { Task, ScheduledSlot } from '@/types';
 
@@ -24,6 +24,7 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
   const { toTop, toHeight } = useTimelineScale(dayStartHour);
   const completeTask   = useStore(s => s.completeTask);
   const uncompleteTask = useStore(s => s.uncompleteTask);
+  const updateTask     = useStore(s => s.updateTask);
 
   const applyTaskUpdate = (updates: Partial<TaskEditValues>) => {
     const newEstimatedMinutes = updates.estimatedMinutes ?? task.estimatedMinutes;
@@ -72,7 +73,8 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
     return () => clearTimeout(timer);
   }, [isCompleting]);
 
-  const isCompleted = task.status === 'completed';
+  const isCompleted  = task.status === 'completed';
+  const isInProgress = task.status === 'in-progress';
   const top         = toTop(slot.startTime);
   const height      = Math.max(toHeight(task.estimatedMinutes), 24);
   const colorClass  = TASK_COLOR_MAP[task.color];
@@ -142,6 +144,7 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
           className={cn(
             'mt-0.5 w-4 h-4 shrink-0 rounded border-2 flex items-center justify-center',
             isCompleted ? 'bg-current border-current' : 'border-current',
+            isInProgress && !isCompleted && 'border-dashed',
           )}
         >
           {isCompleted && (
@@ -149,6 +152,9 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
               className={cn('w-2.5 h-2.5 text-white', isCompleting && 'animate-check-pop')}
               strokeWidth={3}
             />
+          )}
+          {isInProgress && !isCompleted && (
+            <div className="w-1.5 h-1.5 rounded-full bg-current" />
           )}
         </div>
         <span className={cn(
@@ -164,6 +170,23 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
           <p className="text-xs opacity-60">{task.estimatedMinutes}分</p>
           {!isCompleted && (
             <div className="flex items-center gap-1 ml-auto">
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation();
+                  updateTask(task.id, { status: isInProgress ? 'pending' : 'in-progress' });
+                }}
+                className={cn(
+                  'p-0.5 rounded transition-opacity',
+                  isInProgress
+                    ? 'bg-amber-500/40 opacity-100'
+                    : 'bg-black/10 dark:bg-white/10 opacity-60 hover:opacity-100',
+                )}
+                aria-label={isInProgress ? '進行中を解除' : '着手する'}
+                title={isInProgress ? '進行中を解除' : '着手する'}
+              >
+                <CircleDot className="w-2.5 h-2.5" />
+              </button>
               <button
                 onPointerDown={e => e.stopPropagation()}
                 onClick={e => { e.stopPropagation(); setEditOpen(true); }}

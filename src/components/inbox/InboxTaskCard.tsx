@@ -5,7 +5,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { TASK_COLOR_MAP, PRIORITY_BAR_COLOR } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { Clock, GripVertical, Trash2, Check } from 'lucide-react';
+import { Clock, GripVertical, Trash2, Check, CalendarX } from 'lucide-react';
 import { QuickScheduleModal } from '@/components/modals/QuickScheduleModal';
 import type { Task } from '@/types';
 
@@ -22,6 +22,7 @@ interface InboxTaskCardProps {
 export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
   const deleteTask   = useStore(s => s.deleteTask);
   const completeTask = useStore(s => s.completeTask);
+  const updateTask   = useStore(s => s.updateTask);
   const colorClass  = TASK_COLOR_MAP[task.color];
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -166,6 +167,19 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
               )}
             </div>
           </div>
+
+          {/* 繰越タスク: 今日はやらない（削除はせず保留にする） */}
+          {task.rolledOverFrom && (
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); navigator.vibrate?.(12); updateTask(task.id, { isDeferred: true }); }}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+              aria-label="今日はやらない"
+              title="今日はやらない"
+            >
+              <CalendarX className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* PC: ホバーで表示される削除ボタン */}
           <button

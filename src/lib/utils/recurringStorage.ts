@@ -35,3 +35,14 @@ export function markTemplateMaterialized(id: string, date: DateString): void {
   );
   saveRecurringTemplates(templates);
 }
+
+export function updateRecurringTemplate(
+  id: string,
+  updates: Partial<Omit<RecurringTemplate, 'id' | 'createdAt'>>,
+): RecurringTemplate[] {
+  const templates = loadRecurringTemplates().map(t =>
+    t.id === id ? { ...t, ...updates } : t
+  );
+  saveRecurringTemplates(templates);
+  return templates;
+}

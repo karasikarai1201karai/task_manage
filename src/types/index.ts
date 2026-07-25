@@ -22,6 +22,7 @@ export interface Task {
   completedAt?: string;
   rolledOverFrom?: DateString;
   recurringTemplateId?: string;
+  isDeferred?: boolean;
 }
 
 export type RecurrenceType = 'daily' | 'weekdays' | 'weekly';
@@ -63,6 +64,7 @@ export interface AppConfig {
   autoRollover: boolean;
   syncKey: string;
   workerUrl: string;
+  notifyOnTaskStart?: boolean;
 }
 
 export interface PendingDelete {
