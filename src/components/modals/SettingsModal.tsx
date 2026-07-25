@@ -1,13 +1,21 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Sun, Moon, Monitor, Download, Upload, RefreshCw, Wifi } from 'lucide-react';
+import { X, Sun, Moon, Monitor, Download, Upload, RefreshCw, Wifi, Repeat, Trash2 } from 'lucide-react';
 import { useStore } from '@/store/appStore';
 import { getStorageAdapter } from '@/lib/storage';
 import { testKVConnection } from '@/lib/storage/cloudflareKVAdapter';
+import { loadRecurringTemplates, deleteRecurringTemplate } from '@/lib/utils/recurringStorage';
 import { cn } from '@/lib/utils';
-import type { AppConfig, StoredData } from '@/types';
+import type { AppConfig, StoredData, RecurringTemplate } from '@/types';
+
+const RECURRENCE_LABELS: Record<RecurringTemplate['recurrenceType'], string> = {
+  daily:    '毎日',
+  weekdays: '平日のみ',
+  weekly:   '毎週',
+};
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 interface SettingsModalProps {
   open: boolean;
@@ -91,6 +99,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const [syncStatus, setSyncStatus] = useState<string>('');
   const [syncing, setSyncing] = useState(false);
+
+  const [recurringTemplates, setRecurringTemplates] = useState<RecurringTemplate[]>([]);
+
+  useEffect(() => {
+    if (open) setRecurringTemplates(loadRecurringTemplates());
+  }, [open]);
+
+  const handleDeleteTemplate = (id: string) => {
+    setRecurringTemplates(deleteRecurringTemplate(id));
+  };
 
   const handleTestConnection = async () => {
     if (!config.syncKey || !config.workerUrl) {
@@ -260,6 +278,40 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
                 アプリを開いた際、前日の未完了タスクをインボックスに追加します
               </p>
+            </section>
+
+            {/* 繰り返しタスク */}
+            <section className="mb-5">
+              <SectionLabel>繰り返しタスク</SectionLabel>
+              {recurringTemplates.length === 0 ? (
+                <p className="text-xs text-gray-400 dark:text-gray-600 px-1">
+                  タスク追加画面の「繰り返し」からテンプレートを作成できます
+                </p>
+              ) : (
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 divide-y divide-gray-100 dark:divide-gray-800">
+                  {recurringTemplates.map(t => (
+                    <div key={t.id} className="flex items-center justify-between py-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Repeat className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{t.title}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-600">
+                            {RECURRENCE_LABELS[t.recurrenceType]}
+                            {t.recurrenceType === 'weekly' && t.weeklyDay != null && `（${WEEKDAY_LABELS[t.weeklyDay]}）`}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteTemplate(t.id)}
+                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                        aria-label="削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* 同期 */}

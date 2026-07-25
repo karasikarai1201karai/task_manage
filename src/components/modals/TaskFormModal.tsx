@@ -7,7 +7,9 @@ import { useStore } from '@/store/appStore';
 import { TASK_COLORS } from '@/types';
 import { TASK_COLOR_DOT } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import type { TaskColor, TaskPriority, TimeString, DateString } from '@/types';
+import { addRecurringTemplate } from '@/lib/utils/recurringStorage';
+import { materializeRecurringTasks } from '@/lib/utils/recurring';
+import type { TaskColor, TaskPriority, TimeString, DateString, RecurrenceType, RecurringTemplate } from '@/types';
 
 interface TaskFormModalProps {
   open: boolean;
@@ -15,6 +17,14 @@ interface TaskFormModalProps {
   defaultDate?: DateString;
   defaultStartTime?: TimeString;
 }
+
+const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
+  { value: 'daily',    label: '毎日' },
+  { value: 'weekdays', label: '平日のみ' },
+  { value: 'weekly',   label: '毎週' },
+];
+
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: TaskFormModalProps) {
   const addTask      = useStore(s => s.addTask);
@@ -29,6 +39,9 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
   const [destination,  setDestination]  = useState<'inbox' | 'timeline'>(
     defaultStartTime ? 'timeline' : 'inbox'
   );
+  const [isRecurring,    setIsRecurring]    = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('daily');
+  const [weeklyDay,      setWeeklyDay]      = useState(new Date().getDay());
 
   // モーダルを開くたびにフォームをリセット（キャンセル後に前回の入力が残らないようにする）
   useEffect(() => {
@@ -38,6 +51,9 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     setColor('blue');
     setStartTime(defaultStartTime ?? '');
     setDestination(defaultStartTime ? 'timeline' : 'inbox');
+    setIsRecurring(false);
+    setRecurrenceType('daily');
+    setWeeklyDay(new Date().getDay());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -47,20 +63,37 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     e.preventDefault();
     if (!isValid) return;
 
-    const id: string = crypto.randomUUID();
+    if (isRecurring) {
+      const template: RecurringTemplate = {
+        id: crypto.randomUUID(),
+        title: title.trim(),
+        estimatedMinutes: minutes,
+        color,
+        priority: 'medium' as TaskPriority,
+        tags: [],
+        recurrenceType,
+        weeklyDay: recurrenceType === 'weekly' ? weeklyDay : undefined,
+        defaultStartTime: destination === 'timeline' && startTime ? (startTime as TimeString) : undefined,
+        createdAt: new Date().toISOString(),
+      };
+      addRecurringTemplate(template);
+      materializeRecurringTasks(defaultDate ?? currentDate, addTask, scheduleTask);
+    } else {
+      const id: string = crypto.randomUUID();
 
-    addTask({
-      id,
-      title: title.trim(),
-      estimatedMinutes: minutes,
-      color,
-      status: 'pending',
-      priority: 'medium' as TaskPriority,
-      tags: [],
-    });
+      addTask({
+        id,
+        title: title.trim(),
+        estimatedMinutes: minutes,
+        color,
+        status: 'pending',
+        priority: 'medium' as TaskPriority,
+        tags: [],
+      });
 
-    if (destination === 'timeline' && startTime) {
-      scheduleTask(id, defaultDate ?? currentDate, startTime as TimeString);
+      if (destination === 'timeline' && startTime) {
+        scheduleTask(id, defaultDate ?? currentDate, startTime as TimeString);
+      }
     }
 
     // フォームリセット
@@ -69,6 +102,8 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     setColor('blue');
     setStartTime('');
     setDestination('inbox');
+    setIsRecurring(false);
+    setRecurrenceType('daily');
     onClose();
   };
 
@@ -152,6 +187,67 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
               </div>
             </div>
 
+            {/* 繰り返し */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  繰り返し
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsRecurring(v => !v)}
+                  className={cn(
+                    'text-xs px-2.5 py-1 rounded-lg border transition-colors',
+                    isRecurring
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
+                  )}
+                >
+                  {isRecurring ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              {isRecurring && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    {RECURRENCE_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setRecurrenceType(opt.value)}
+                        className={cn(
+                          'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
+                          recurrenceType === opt.value
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {recurrenceType === 'weekly' && (
+                    <div className="flex gap-1">
+                      {WEEKDAY_LABELS.map((label, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setWeeklyDay(i)}
+                          className={cn(
+                            'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
+                            weeklyDay === i
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* 追加先 */}
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
@@ -197,7 +293,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
               disabled={!isValid}
               className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              追加する
+              {isRecurring ? '繰り返しタスクを追加' : '追加する'}
             </button>
           </form>
         </Dialog.Content>
