@@ -23,6 +23,7 @@ export interface Task {
   rolledOverFrom?: DateString;
   recurringTemplateId?: string;
   isDeferred?: boolean;
+  materializedDate?: DateString;
 }
 
 export type RecurrenceType = 'daily' | 'weekdays' | 'weekly';
@@ -38,7 +39,6 @@ export interface RecurringTemplate {
   weeklyDay?: number;
   defaultStartTime?: TimeString;
   createdAt: string;
-  lastMaterialized?: DateString;
 }
 
 export interface ScheduledSlot {

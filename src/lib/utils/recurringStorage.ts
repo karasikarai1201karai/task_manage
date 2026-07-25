@@ -1,4 +1,4 @@
-import type { DateString, RecurringTemplate } from '@/types';
+import type { RecurringTemplate } from '@/types';
 
 const STORAGE_KEY = 'any-planner-recurring-templates';
 
@@ -27,13 +27,6 @@ export function deleteRecurringTemplate(id: string): RecurringTemplate[] {
   const templates = loadRecurringTemplates().filter(t => t.id !== id);
   saveRecurringTemplates(templates);
   return templates;
-}
-
-export function markTemplateMaterialized(id: string, date: DateString): void {
-  const templates = loadRecurringTemplates().map(t =>
-    t.id === id ? { ...t, lastMaterialized: date } : t
-  );
-  saveRecurringTemplates(templates);
 }
 
 export function updateRecurringTemplate(

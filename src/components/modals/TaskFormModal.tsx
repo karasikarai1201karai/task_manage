@@ -30,6 +30,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
   const addTask      = useStore(s => s.addTask);
   const scheduleTask = useStore(s => s.scheduleTask);
   const currentDate  = useStore(s => s.currentDate);
+  const tasks        = useStore(s => s.tasks);
   const config       = useStore(s => s.config);
 
   const [title,        setTitle]        = useState('');
@@ -79,7 +80,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
         createdAt: new Date().toISOString(),
       };
       addRecurringTemplate(template);
-      materializeRecurringTasks(defaultDate ?? currentDate, addTask, scheduleTask);
+      materializeRecurringTasks(defaultDate ?? currentDate, tasks, addTask, scheduleTask);
     } else {
       const id: string = crypto.randomUUID();
 

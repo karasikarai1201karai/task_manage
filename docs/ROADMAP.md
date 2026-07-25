@@ -8,10 +8,7 @@ AIへ: このファイルから **未着手のタスクを1つ** 選んで実装
 
 ## S サイズ（30分以内・最優先）
 
-- [ ] 【バグ修正・最優先】繰り返しタスクが日付送りで重複生成される問題を修正する: `AppShell.tsx` の定期タスク生成 useEffect が `materializeRecurringTasks(currentDate, ...)` と**閲覧中の日付**を渡しており、`recurring.ts` の `isTemplateDueOn` は `template.lastMaterialized === date` という**単一フィールドとの一致比較**でしか重複判定していない。そのため「前日」「翌日」ボタンで日付を行き来すると、訪れた日付ごとに毎回 `lastMaterialized` が上書きされ、過去に生成済みだった日付が「未生成」扱いに戻って再生成される（例: 今日→前日→今日、と辿ると今日分が重複生成される）。KV書き込み（`addTask`+`scheduleTask`）も伴うため無料枠消費にも影響する。
-  - → `AppShell.tsx` の呼び出しを `materializeRecurringTasks(today(), addTask, scheduleTask)` に変更し、**閲覧中の日付にかかわらず実際の今日にのみ生成する**（結果として「当日になるまで生成されない」という挙動も自然に満たされる）
-  - → `Task` に `materializedDate?: DateString` を追加し、`materializeRecurringTasks` で生成時に設定する。`isTemplateDueOn`/`getDueTemplates` に `tasks` 配列を渡すよう変更し、`tasks.some(t => t.recurringTemplateId === template.id && t.materializedDate === date)` で重複判定する（テンプレート側の `lastMaterialized` ではなく、KV同期される実際のタスク配列を正とする）
-  - **補足**: 繰り返しテンプレート自体は端末ローカル（localStorage）管理・`lastMaterialized` も端末ごとに独立しているため、複数端末を使うユーザーは端末ごとに重複生成される可能性もある。上記のタスク配列ベースの判定に変更すればこの多端末重複も同時に解消する
+（現在なし）
 
 ## M サイズ（1〜2時間）
 

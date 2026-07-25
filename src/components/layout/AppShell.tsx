@@ -78,10 +78,13 @@ export function AppShell() {
 
   const { yToTime, toTop } = useTimelineScale(config.dayStartHour);
 
-  // 定期タスクのマテリアライズ（ロード完了後・日付切替のたびに今日分を生成）
+  // 定期タスクのマテリアライズ（ロード完了後・日付切替のたびに実際の「今日」分だけを生成する。
+  // 閲覧中の日付ではなく常にtoday()を対象にすることで、日付送りナビゲーションによる重複生成を防ぐ。
+  // tasksはタスク操作のたびに再実行させないよう意図的に依存配列から外している
   useEffect(() => {
     if (!isLoaded) return;
-    materializeRecurringTasks(currentDate, addTask, scheduleTask);
+    materializeRecurringTasks(today(), tasks, addTask, scheduleTask);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, currentDate, addTask, scheduleTask]);
 
   // 現在時刻へ自動スクロール（起動時のみ）
