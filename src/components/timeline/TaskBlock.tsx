@@ -107,6 +107,7 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
         if (isCompleted) {
           uncompleteTask(task.id);
         } else {
+          navigator.vibrate?.(12);
           setIsCompleting(true);
           completeTask(task.id);
         }
