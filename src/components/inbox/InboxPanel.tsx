@@ -1,13 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronDown, Check, Trash2 } from 'lucide-react';
 import { useStore } from '@/store/appStore';
+import { TASK_COLOR_MAP } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import { InboxTaskCard } from './InboxTaskCard';
 import { TaskFormModal } from '@/components/modals/TaskFormModal';
+import type { Task } from '@/types';
+
+function CompletedTaskRow({ task }: { task: Task }) {
+  const uncompleteTask = useStore(s => s.uncompleteTask);
+  const deleteTask     = useStore(s => s.deleteTask);
+  const colorClass     = TASK_COLOR_MAP[task.color];
+
+  return (
+    <div className={cn('group flex items-center gap-2 p-2 rounded-lg border opacity-60', colorClass)}>
+      <button
+        onClick={() => uncompleteTask(task.id)}
+        className="w-4 h-4 shrink-0 rounded border-2 border-current bg-current flex items-center justify-center"
+        aria-label="未完了に戻す"
+      >
+        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+      </button>
+      <p className="flex-1 min-w-0 text-xs line-through truncate">{task.title}</p>
+      <button
+        onClick={() => deleteTask(task.id)}
+        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+        aria-label="削除"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
 
 export function InboxPanel() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const tasks       = useStore(s => s.tasks);
   const dayPlans    = useStore(s => s.dayPlans);
@@ -20,6 +50,10 @@ export function InboxPanel() {
   const inboxTasks = tasks.filter(
     t => !todayScheduledIds.has(t.id) && t.status !== 'completed'
   );
+
+  const completedTasks = tasks
+    .filter(t => t.status === 'completed')
+    .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
 
   // 最短タスク = 次の空きに収まりやすい候補としてハイライト
   const minDuration  = inboxTasks.length > 0 ? Math.min(...inboxTasks.map(t => t.estimatedMinutes)) : null;
@@ -61,6 +95,26 @@ export function InboxPanel() {
               isHighlighted={task.id === highlightId}
             />
           ))
+        )}
+
+        {/* 完了済みタスク */}
+        {completedTasks.length > 0 && (
+          <div className="pt-1">
+            <button
+              onClick={() => setShowCompleted(v => !v)}
+              className="flex items-center gap-1 w-full px-1 py-1.5 text-xs text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+            >
+              <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', showCompleted && 'rotate-180')} />
+              完了済み ({completedTasks.length})
+            </button>
+            {showCompleted && (
+              <div className="space-y-1.5 mt-1">
+                {completedTasks.map(task => (
+                  <CompletedTaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
