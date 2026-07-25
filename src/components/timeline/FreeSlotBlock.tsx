@@ -26,7 +26,7 @@ export function FreeSlotBlock({ slot, dayStartHour }: FreeSlotBlockProps) {
       ? 'text-green-600 dark:text-green-400'
       : slot.durationMinutes >= 30
         ? 'text-yellow-600 dark:text-yellow-400'
-        : 'text-red-500 dark:text-red-400';
+        : 'text-gray-400 dark:text-gray-500';
 
   return (
     <>

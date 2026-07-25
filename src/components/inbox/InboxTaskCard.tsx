@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
-import { TASK_COLOR_MAP } from '@/lib/constants';
+import { TASK_COLOR_MAP, PRIORITY_BAR_COLOR } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Clock, GripVertical, Trash2, Check } from 'lucide-react';
 import { QuickScheduleModal } from '@/components/modals/QuickScheduleModal';
@@ -124,6 +124,12 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
           onPointerCancel={onPointerCancel}
           onContextMenu={onContextMenu}
         >
+          {/* 優先度バー */}
+          <div
+            className={cn('w-1 self-stretch rounded-full shrink-0', PRIORITY_BAR_COLOR[task.priority])}
+            aria-hidden="true"
+          />
+
           {/* ドラッグハンドル */}
           <button
             ref={gripRef}

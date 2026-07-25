@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Plus, ChevronDown, Check, Trash2 } from 'lucide-react';
 import { useStore } from '@/store/appStore';
-import { TASK_COLOR_MAP } from '@/lib/constants';
+import { TASK_COLOR_MAP, PRIORITY_RANK } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { InboxTaskCard } from './InboxTaskCard';
 import { TaskFormModal } from '@/components/modals/TaskFormModal';
@@ -47,9 +47,11 @@ export function InboxPanel() {
   const todayScheduledIds = new Set(
     (dayPlans[currentDate]?.slots ?? []).map(s => s.taskId)
   );
-  const inboxTasks = tasks.filter(
-    t => !todayScheduledIds.has(t.id) && t.status !== 'completed'
-  );
+  const inboxTasks = tasks
+    .filter(t => !todayScheduledIds.has(t.id) && t.status !== 'completed')
+    .sort((a, b) =>
+      PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.estimatedMinutes - b.estimatedMinutes
+    );
 
   const completedTasks = tasks
     .filter(t => t.status === 'completed')

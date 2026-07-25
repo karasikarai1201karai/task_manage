@@ -1,4 +1,4 @@
-import type { AppConfig, TaskColor } from '@/types';
+import type { AppConfig, TaskColor, TaskPriority } from '@/types';
 
 export const DEFAULT_CONFIG: AppConfig = {
   dayStartHour: 6,
@@ -27,4 +27,16 @@ export const TASK_COLOR_DOT: Record<TaskColor, string> = {
   red:    'bg-red-400',
   purple: 'bg-purple-400',
   orange: 'bg-orange-400',
+};
+
+export const PRIORITY_RANK: Record<TaskPriority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+export const PRIORITY_BAR_COLOR: Record<TaskPriority, string> = {
+  high:   'bg-red-500',
+  medium: 'bg-amber-400',
+  low:    'bg-gray-300 dark:bg-gray-600',
 };
