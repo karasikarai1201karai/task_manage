@@ -5,12 +5,14 @@ import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { TASK_COLOR_MAP } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { Clock, GripVertical, Trash2 } from 'lucide-react';
+import { Clock, GripVertical, Trash2, Check } from 'lucide-react';
 import { QuickScheduleModal } from '@/components/modals/QuickScheduleModal';
 import type { Task } from '@/types';
 
-const LONG_PRESS_MS  = 500;
-const CANCEL_MOVE_PX = 8;
+const LONG_PRESS_MS   = 500;
+const CANCEL_MOVE_PX  = 8;
+const SWIPE_ACTIVATE_PX = 12;
+const SWIPE_COMPLETE_PX = 80;
 
 interface InboxTaskCardProps {
   task: Task;
@@ -18,7 +20,8 @@ interface InboxTaskCardProps {
 }
 
 export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
-  const deleteTask = useStore(s => s.deleteTask);
+  const deleteTask   = useStore(s => s.deleteTask);
+  const completeTask = useStore(s => s.completeTask);
   const colorClass  = TASK_COLOR_MAP[task.color];
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -26,11 +29,17 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
     data: { type: 'inbox', taskId: task.id },
   });
 
-  const gripRef    = useRef<HTMLButtonElement>(null);
-  const pressStart = useRef({ x: 0, y: 0 });
-  const lpTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gripRef       = useRef<HTMLButtonElement>(null);
+  const pressStart    = useRef({ x: 0, y: 0 });
+  const lpTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swipeXRef     = useRef(0);
+  const startedOnGrip = useRef(false);
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [swipeX, setSwipeXState] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+
+  const setSwipeX = (x: number) => { swipeXRef.current = x; setSwipeXState(x); };
 
   const cancelLP = useCallback(() => {
     if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
@@ -38,7 +47,8 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!e.isPrimary) return;
-    if (gripRef.current?.contains(e.target as Node)) return;
+    startedOnGrip.current = !!gripRef.current?.contains(e.target as Node);
+    if (startedOnGrip.current) return;
 
     pressStart.current = { x: e.clientX, y: e.clientY };
     lpTimer.current = setTimeout(() => {
@@ -49,14 +59,32 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!lpTimer.current) return;
+    if (startedOnGrip.current) return;
+
     const dx = e.clientX - pressStart.current.x;
     const dy = e.clientY - pressStart.current.y;
-    if (Math.abs(dx) > CANCEL_MOVE_PX || Math.abs(dy) > CANCEL_MOVE_PX) cancelLP();
+
+    if (lpTimer.current && (Math.abs(dx) > CANCEL_MOVE_PX || Math.abs(dy) > CANCEL_MOVE_PX)) cancelLP();
+
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_ACTIVATE_PX) {
+      setIsSwiping(true);
+      setSwipeX(dx);
+    }
   };
 
-  const onPointerUp     = () => cancelLP();
-  const onPointerCancel = () => cancelLP();
+  const endSwipe = () => {
+    if (startedOnGrip.current) return;
+
+    if (Math.abs(swipeXRef.current) > SWIPE_COMPLETE_PX) {
+      navigator.vibrate?.(12);
+      completeTask(task.id);
+    }
+    setIsSwiping(false);
+    setSwipeX(0);
+  };
+
+  const onPointerUp     = () => { cancelLP(); endSwipe(); };
+  const onPointerCancel = () => { cancelLP(); endSwipe(); };
 
   // PC: 右クリックでスケジュール登録
   const onContextMenu = (e: React.MouseEvent) => {
@@ -65,61 +93,76 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
     setScheduleOpen(true);
   };
 
+  const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_COMPLETE_PX, 1);
+
   return (
     <>
-      <div
-        ref={setNodeRef}
-        className={cn(
-          'group flex items-center gap-2 p-2.5 rounded-lg border transition-opacity select-none',
-          colorClass,
-          isHighlighted && 'ring-2 ring-blue-400 ring-offset-1',
-          isDragging && 'opacity-25',
-        )}
-        style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onContextMenu={onContextMenu}
-      >
-        {/* ドラッグハンドル */}
-        <button
-          ref={gripRef}
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing p-0.5 -ml-0.5 shrink-0 opacity-40 hover:opacity-80 transition-opacity touch-none"
-          aria-label="ドラッグして配置"
+      <div className="relative">
+        <div
+          className="absolute inset-0 flex items-center justify-center rounded-lg bg-green-500 text-white"
+          style={{ opacity: swipeProgress }}
         >
-          <GripVertical className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium truncate">{task.title}</p>
-          <div className="flex items-center gap-1 mt-0.5">
-            <Clock className="w-3 h-3 opacity-50" />
-            <span className="text-xs opacity-60">{task.estimatedMinutes}分</span>
-            {isHighlighted && (
-              <span className="ml-1 text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded-full leading-none">
-                今すぐ
-              </span>
-            )}
-            {task.rolledOverFrom && (
-              <span className="ml-1 text-xs bg-orange-400 text-white px-1.5 py-0.5 rounded-full leading-none">
-                繰越
-              </span>
-            )}
-          </div>
+          <Check className="w-4 h-4" strokeWidth={3} />
         </div>
 
-        {/* PC: ホバーで表示される削除ボタン */}
-        <button
-          onPointerDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); deleteTask(task.id); }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
-          aria-label="削除"
+        <div
+          ref={setNodeRef}
+          className={cn(
+            'group relative flex items-center gap-2 p-2.5 rounded-lg border select-none',
+            !isSwiping && 'transition-[opacity,transform] duration-200',
+            colorClass,
+            isHighlighted && 'ring-2 ring-blue-400 ring-offset-1',
+            isDragging && 'opacity-25',
+          )}
+          style={{
+            WebkitTouchCallout: 'none',
+            transform: `translateX(${swipeX}px)`,
+          } as React.CSSProperties}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onContextMenu={onContextMenu}
         >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+          {/* ドラッグハンドル */}
+          <button
+            ref={gripRef}
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-0.5 -ml-0.5 shrink-0 opacity-40 hover:opacity-80 transition-opacity touch-none"
+            aria-label="ドラッグして配置"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium truncate">{task.title}</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <Clock className="w-3 h-3 opacity-50" />
+              <span className="text-xs opacity-60">{task.estimatedMinutes}分</span>
+              {isHighlighted && (
+                <span className="ml-1 text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded-full leading-none">
+                  今すぐ
+                </span>
+              )}
+              {task.rolledOverFrom && (
+                <span className="ml-1 text-xs bg-orange-400 text-white px-1.5 py-0.5 rounded-full leading-none">
+                  繰越
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* PC: ホバーで表示される削除ボタン */}
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); deleteTask(task.id); }}
+            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+            aria-label="削除"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       <QuickScheduleModal
