@@ -7,7 +7,8 @@ import { useTimelineScale } from '@/hooks/useTimelineScale';
 import { TASK_COLOR_MAP } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { addMinutesToTime } from '@/lib/utils/time';
-import { Check } from 'lucide-react';
+import { Check, Pencil } from 'lucide-react';
+import { TaskEditModal, type TaskEditValues } from '@/components/modals/TaskEditModal';
 import type { Task, ScheduledSlot } from '@/types';
 
 interface TaskBlockProps {
@@ -22,15 +23,15 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
   const completeTask   = useStore(s => s.completeTask);
   const uncompleteTask = useStore(s => s.uncompleteTask);
 
-  const extendTask = (minutes: number) => {
-    const newEstimatedMinutes = task.estimatedMinutes + minutes;
+  const applyTaskUpdate = (updates: Partial<TaskEditValues>) => {
+    const newEstimatedMinutes = updates.estimatedMinutes ?? task.estimatedMinutes;
     const newEndTime = addMinutesToTime(slot.startTime, newEstimatedMinutes);
     useStore.setState(s => {
       const plan = s.dayPlans[slot.date];
       if (!plan) return s;
       return {
         tasks: s.tasks.map(t =>
-          t.id === task.id ? { ...t, estimatedMinutes: newEstimatedMinutes, updatedAt: new Date().toISOString() } : t
+          t.id === task.id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
         ),
         dayPlans: {
           ...s.dayPlans,
@@ -44,6 +45,10 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
     });
     useStore.getState().saveToStorage();
   };
+
+  const extendTask = (minutes: number) => applyTaskUpdate({ estimatedMinutes: task.estimatedMinutes + minutes });
+
+  const [editOpen, setEditOpen] = useState(false);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `scheduled-${task.id}`,
@@ -72,6 +77,7 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
   const isCompact    = height < 44;
 
   return (
+    <>
     <div
       ref={setNodeRef}
       {...attributes}
@@ -105,6 +111,10 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
           completeTask(task.id);
         }
       }}
+      onContextMenu={e => {
+        e.preventDefault();
+        if (!isCompleted) setEditOpen(true);
+      }}
       title={task.title}
     >
       <div className="flex items-start gap-1.5">
@@ -134,6 +144,14 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
           <p className="text-xs opacity-60">{task.estimatedMinutes}分</p>
           {!isCompleted && (
             <div className="flex items-center gap-1 ml-auto">
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); setEditOpen(true); }}
+                className="p-0.5 rounded bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 opacity-60 hover:opacity-100 transition-opacity"
+                aria-label="編集"
+              >
+                <Pencil className="w-2.5 h-2.5" />
+              </button>
               {[15, 30].map(minutes => (
                 <button
                   key={minutes}
@@ -150,5 +168,13 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
         </div>
       )}
     </div>
+
+    <TaskEditModal
+      task={task}
+      open={editOpen}
+      onClose={() => setEditOpen(false)}
+      onSave={applyTaskUpdate}
+    />
+    </>
   );
 }
