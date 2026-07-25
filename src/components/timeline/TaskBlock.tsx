@@ -11,6 +11,8 @@ import { Check, Pencil } from 'lucide-react';
 import { TaskEditModal, type TaskEditValues } from '@/components/modals/TaskEditModal';
 import type { Task, ScheduledSlot } from '@/types';
 
+const TAP_PADDING_PX = 8;
+
 interface TaskBlockProps {
   task: Task;
   slot: ScheduledSlot;
@@ -76,8 +78,31 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
   const colorClass  = TASK_COLOR_MAP[task.color];
   const isCompact    = height < 44;
 
+  const handleComplete = () => {
+    if (isCompleted) {
+      uncompleteTask(task.id);
+    } else {
+      navigator.vibrate?.(12);
+      setIsCompleting(true);
+      completeTask(task.id);
+    }
+  };
+
   return (
     <>
+    {/* 短時間タスクは見た目の高さを変えずタップ判定領域だけ広げる */}
+    {isCompact && (
+      <div
+        data-timeline-block
+        aria-hidden="true"
+        onClick={handleComplete}
+        className="absolute left-0 right-0 cursor-pointer"
+        style={{
+          top: `${Math.max(0, top - TAP_PADDING_PX)}px`,
+          height: `${height + TAP_PADDING_PX * 2}px`,
+        }}
+      />
+    )}
     <div
       ref={setNodeRef}
       {...attributes}
@@ -104,13 +129,7 @@ export function TaskBlock({ task, slot, dayStartHour, isHighlighted }: TaskBlock
       )}
       onClick={() => {
         if (wasDragging.current) { wasDragging.current = false; return; }
-        if (isCompleted) {
-          uncompleteTask(task.id);
-        } else {
-          navigator.vibrate?.(12);
-          setIsCompleting(true);
-          completeTask(task.id);
-        }
+        handleComplete();
       }}
       onContextMenu={e => {
         e.preventDefault();
