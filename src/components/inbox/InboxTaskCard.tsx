@@ -135,6 +135,14 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
             <GripVertical className="w-3.5 h-3.5" />
           </button>
 
+          {/* 常時表示の完了チェックボックス */}
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); navigator.vibrate?.(12); completeTask(task.id); }}
+            className="w-4 h-4 shrink-0 rounded border-2 border-current opacity-50 hover:opacity-90 hover:bg-current/10 transition-colors"
+            aria-label="完了にする"
+          />
+
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate">{task.title}</p>
             <div className="flex items-center gap-1 mt-0.5">
