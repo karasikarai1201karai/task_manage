@@ -18,14 +18,14 @@ export function MobileTabBar({ activeTab, onTabChange, inboxCount = 0 }: MobileT
       <button
         onClick={() => onTabChange('inbox')}
         className={cn(
-          'flex-1 flex flex-col items-center gap-1 py-2 text-xs transition-colors relative',
+          'flex-1 flex flex-col items-center justify-center gap-1 min-h-[60px] py-2.5 text-xs transition-colors relative active:bg-gray-100 dark:active:bg-gray-800',
           activeTab === 'inbox'
             ? 'text-blue-600 dark:text-blue-400'
             : 'text-gray-500 dark:text-gray-400',
         )}
       >
         <span className="relative">
-          <Inbox className="w-5 h-5" />
+          <Inbox className="w-6 h-6" />
           {inboxCount > 0 && (
             <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 flex items-center justify-center bg-blue-600 text-white text-[10px] font-bold rounded-full px-0.5 leading-none">
               {inboxCount > 99 ? '99+' : inboxCount}
@@ -37,13 +37,13 @@ export function MobileTabBar({ activeTab, onTabChange, inboxCount = 0 }: MobileT
       <button
         onClick={() => onTabChange('timeline')}
         className={cn(
-          'flex-1 flex flex-col items-center gap-1 py-2 text-xs transition-colors',
+          'flex-1 flex flex-col items-center justify-center gap-1 min-h-[60px] py-2.5 text-xs transition-colors active:bg-gray-100 dark:active:bg-gray-800',
           activeTab === 'timeline'
             ? 'text-blue-600 dark:text-blue-400'
             : 'text-gray-500 dark:text-gray-400',
         )}
       >
-        <Calendar className="w-5 h-5" />
+        <Calendar className="w-6 h-6" />
         タイムライン
       </button>
     </nav>
