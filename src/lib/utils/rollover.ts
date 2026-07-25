@@ -19,6 +19,7 @@ export function getRolledOverTasks(
       for (const slot of plan.slots) {
         const task = tasks.find(t => t.id === slot.taskId);
         if (!task || task.status === 'completed') continue;
+        if (task.recurringTemplateId) continue;
 
         const alreadyRolled = tasks.some(
           t => t.rolledOverFrom === dateStr && t.title === task.title && t.status !== 'completed'

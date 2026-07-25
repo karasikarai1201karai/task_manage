@@ -21,6 +21,23 @@ export interface Task {
   updatedAt: string;
   completedAt?: string;
   rolledOverFrom?: DateString;
+  recurringTemplateId?: string;
+}
+
+export type RecurrenceType = 'daily' | 'weekdays' | 'weekly';
+
+export interface RecurringTemplate {
+  id: string;
+  title: string;
+  estimatedMinutes: number;
+  color: TaskColor;
+  priority: TaskPriority;
+  tags: string[];
+  recurrenceType: RecurrenceType;
+  weeklyDay?: number;
+  defaultStartTime?: TimeString;
+  createdAt: string;
+  lastMaterialized?: DateString;
 }
 
 export interface ScheduledSlot {

@@ -16,27 +16,29 @@ AIへ: このファイルから **未着手のタスクを1つ** 選んで実装
 
 ## L サイズ（複数サイクル）
 
-- [ ] 定期タスク（繰り返し機能）: タスク作成時に「繰り返し」トグルを追加し、毎日 / 平日のみ / 毎週X曜日 のパターンで定期実行できるようにする。実装の詳細は以下を参照
-  ```
-  【データモデル】
-  - RecurringTemplate { id, title, estimatedMinutes, color, priority, tags,
-                        recurrenceType: 'daily'|'weekdays'|'weekly',
-                        weeklyDay?: 0-6, defaultStartTime?, createdAt, lastMaterialized? }
-  - Task に recurringTemplateId?: string を追加
-  - StoredData に recurringTemplates?: RecurringTemplate[] を追加
-  - AppStore に addRecurringTemplate / deleteRecurringTemplate アクションを追加
+- [WIP] 定期タスク（繰り返し機能）: タスク作成時に「繰り返し」トグルを追加し、毎日 / 平日のみ / 毎週X曜日 のパターンで定期実行できるようにする。
 
-  【マテリアライズ】
-  - loadFromStorage と setCurrentDate の中で materializeForDate(templates, date) を呼ぶ
-  - lastMaterialized === date ならスキップ（二重作成防止）
-  - 繰り返しタスクは rollover.ts でロールオーバー除外（recurringTemplateId があるものをスキップ）
+  **重要な設計変更**: 元の実装メモは AppStore に addRecurringTemplate/deleteRecurringTemplate アクションを追加し、
+  loadFromStorage/setCurrentDate 内で materialize を呼ぶ想定だったが、appStore.ts は変更禁止のため、
+  以下の方式に変更した。次サイクルはこの方式を踏襲すること。
 
-  【UI】
-  - TaskFormModal に「繰り返し」トグル＋パターン選択を追加
-  - SettingsModal に「繰り返しタスク」セクションを追加（テンプレート一覧・削除ボタン）
+  - テンプレート定義は appStore/KV 同期を経由せず、`src/lib/utils/recurringStorage.ts` が
+    localStorage キー `any-planner-recurring-templates` に直接読み書きする（端末ローカル、KV書き込み回数に影響しない）
+  - マテリアライズされた実体タスク（Task）は既存の `addTask` / `scheduleTask` アクション経由で作成されるため、
+    通常のタスクとして KV 同期・ロールオーバー対象になる（`recurringTemplateId` を持つものはロールオーバー除外済み）
+  - マテリアライズの発火は appStore.ts 内ではなく `AppShell.tsx` の useEffect（`isLoaded` && `currentDate` 変化時）で行う
 
-  【注意】appStore.ts は慎重に変更すること
-  ```
+  **完了済み**:
+  - [x] `types/index.ts` に `RecurringTemplate` / `RecurrenceType` / `Task.recurringTemplateId?` を追加
+  - [x] `lib/utils/recurringStorage.ts`（load/add/delete/markMaterialized）
+  - [x] `lib/utils/recurring.ts`（isTemplateDueOn / getDueTemplates / materializeRecurringTasks）
+  - [x] `AppShell.tsx` に materialize 用 useEffect を配線
+  - [x] `rollover.ts` で `recurringTemplateId` を持つタスクをロールオーバー除外
+
+  **未着手（次サイクル）**:
+  - [ ] `TaskFormModal.tsx` に「繰り返し」トグル＋パターン選択（毎日/平日のみ/毎週X曜日）UIを追加し、
+        `addRecurringTemplate()` でテンプレートを保存 → 当日分を即時マテリアライズ
+  - [ ] `SettingsModal.tsx` に「繰り返しタスク」セクションを追加（`loadRecurringTemplates()` で一覧表示・`deleteRecurringTemplate()` で削除）
 
 ---
 

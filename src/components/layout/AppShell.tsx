@@ -23,6 +23,7 @@ import { useStore } from '@/store/appStore';
 import { useTimelineScale } from '@/hooks/useTimelineScale';
 import { TASK_COLOR_MAP } from '@/lib/constants';
 import { today, timeToMinutes } from '@/lib/utils/time';
+import { materializeRecurringTasks } from '@/lib/utils/recurring';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, TimeString } from '@/types';
@@ -39,11 +40,19 @@ export function AppShell() {
   const dayPlans      = useStore(s => s.dayPlans);
   const config        = useStore(s => s.config);
   const currentDate   = useStore(s => s.currentDate);
+  const isLoaded      = useStore(s => s.isLoaded);
+  const addTask       = useStore(s => s.addTask);
   const scheduleTask  = useStore(s => s.scheduleTask);
   const deleteTask    = useStore(s => s.deleteTask);
   const setCurrentDate = useStore(s => s.setCurrentDate);
 
   const { yToTime, toTop } = useTimelineScale(config.dayStartHour);
+
+  // 定期タスクのマテリアライズ（ロード完了後・日付切替のたびに今日分を生成）
+  useEffect(() => {
+    if (!isLoaded) return;
+    materializeRecurringTasks(currentDate, addTask, scheduleTask);
+  }, [isLoaded, currentDate, addTask, scheduleTask]);
 
   // 現在時刻へ自動スクロール（起動時のみ）
   useEffect(() => {
