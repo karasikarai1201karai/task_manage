@@ -34,7 +34,15 @@ export function AppShell() {
   const [activeDragType,  setActiveDragType]  = useState<string | null>(null);
   const [settingsOpen,    setSettingsOpen]    = useState(false);
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
-  const timelineScrollRef = useRef<HTMLDivElement>(null);
+  const mobileScrollRef  = useRef<HTMLDivElement>(null);
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+
+  // モバイル/デスクトップ用Timelineは常に両方DOMにマウントされている（Tailwindの
+  // md:hidden/hidden md:block はCSS表示切替のみ）ため、実際に表示されている方のrefを選ぶ
+  const getActiveScrollEl = useCallback((): HTMLDivElement | null => {
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    return isDesktop ? desktopScrollRef.current : mobileScrollRef.current;
+  }, []);
 
   const tasks         = useStore(s => s.tasks);
   const dayPlans      = useStore(s => s.dayPlans);
@@ -56,7 +64,7 @@ export function AppShell() {
 
   // 現在時刻へ自動スクロール（起動時のみ）
   useEffect(() => {
-    const el = timelineScrollRef.current;
+    const el = getActiveScrollEl();
     if (!el) return;
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` as TimeString;
@@ -115,11 +123,11 @@ export function AppShell() {
 
     setHighlightTaskId(closestTaskId);
     requestAnimationFrame(() => {
-      const el = timelineScrollRef.current?.querySelector(`[data-task-id="${closestTaskId}"]`);
+      const el = getActiveScrollEl()?.querySelector(`[data-task-id="${closestTaskId}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
     setTimeout(() => setHighlightTaskId(null), 2500);
-  }, [currentDate, dayPlans, tasks, setCurrentDate]);
+  }, [currentDate, dayPlans, tasks, setCurrentDate, getActiveScrollEl]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -158,7 +166,7 @@ export function AppShell() {
 
     // タイムラインへのドロップ → スケジュール
     if (over.id === 'timeline-droppable') {
-      const scrollEl = timelineScrollRef.current;
+      const scrollEl = getActiveScrollEl();
       if (!scrollEl) return;
       const rect       = scrollEl.getBoundingClientRect();
       const scrollTop  = scrollEl.scrollTop;
@@ -167,7 +175,7 @@ export function AppShell() {
       const time = yToTime(translated.top, scrollTop, rect);
       scheduleTask(taskId, currentDate, time);
     }
-  }, [yToTime, currentDate, scheduleTask, deleteTask, resetDragState]);
+  }, [yToTime, currentDate, scheduleTask, deleteTask, resetDragState, getActiveScrollEl]);
 
   const handleDragCancel = useCallback((_event: DragCancelEvent) => {
     resetDragState();
@@ -195,11 +203,11 @@ export function AppShell() {
             <div className="md:hidden h-full">
               {activeTab === 'inbox'
                 ? <InboxPanel />
-                : <Timeline scrollRef={timelineScrollRef} highlightTaskId={highlightTaskId} />
+                : <Timeline scrollRef={mobileScrollRef} highlightTaskId={highlightTaskId} />
               }
             </div>
             <div className="hidden md:block h-full">
-              <Timeline scrollRef={timelineScrollRef} highlightTaskId={highlightTaskId} />
+              <Timeline scrollRef={desktopScrollRef} highlightTaskId={highlightTaskId} />
             </div>
           </main>
         </div>
