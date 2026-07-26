@@ -5,7 +5,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { useStore } from '@/store/appStore';
 import { TASK_COLOR_MAP, PRIORITY_BAR_COLOR } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { Clock, GripVertical, Trash2, Check, CalendarX } from 'lucide-react';
+import { Clock, GripVertical, Trash2, Check, CalendarX, CircleDot } from 'lucide-react';
 import { QuickScheduleModal } from '@/components/modals/QuickScheduleModal';
 import type { Task } from '@/types';
 
@@ -95,6 +95,7 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
   };
 
   const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_COMPLETE_PX, 1);
+  const isInProgress  = task.status === 'in-progress';
 
   return (
     <>
@@ -146,9 +147,14 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
           <button
             onPointerDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); navigator.vibrate?.(12); completeTask(task.id); }}
-            className="w-4 h-4 shrink-0 rounded border-2 border-current opacity-50 hover:opacity-90 hover:bg-current/10 transition-colors"
+            className={cn(
+              'w-4 h-4 shrink-0 rounded border-2 border-current opacity-50 hover:opacity-90 hover:bg-current/10 transition-colors flex items-center justify-center',
+              isInProgress && 'border-dashed',
+            )}
             aria-label="完了にする"
-          />
+          >
+            {isInProgress && <div className="w-1.5 h-1.5 rounded-full bg-current" />}
+          </button>
 
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate">{task.title}</p>
@@ -180,6 +186,25 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
               <CalendarX className="w-3.5 h-3.5" />
             </button>
           )}
+
+          {/* 着手トグル */}
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => {
+              e.stopPropagation();
+              updateTask(task.id, { status: isInProgress ? 'pending' : 'in-progress' });
+            }}
+            className={cn(
+              'p-1 rounded transition-opacity shrink-0',
+              isInProgress
+                ? 'opacity-100 bg-amber-500/30'
+                : 'opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10',
+            )}
+            aria-label={isInProgress ? '進行中を解除' : '着手する'}
+            title={isInProgress ? '進行中を解除' : '着手する'}
+          >
+            <CircleDot className="w-3.5 h-3.5" />
+          </button>
 
           {/* PC: ホバーで表示される削除ボタン */}
           <button
