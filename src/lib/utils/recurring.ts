@@ -53,3 +53,24 @@ export function materializeRecurringTasks(
     }
   });
 }
+
+// 習慣タスク（onCompletion）: 完了イベントのみをトリガーにするため日付ベースの重複判定を通さない
+export function hasActiveInstance(templateId: string, tasks: Task[]): boolean {
+  return tasks.some(t => t.recurringTemplateId === templateId && t.status !== 'completed');
+}
+
+export function materializeOnCompletionTask(
+  template: RecurringTemplate,
+  addTask: (task: Omit<Task, 'createdAt' | 'updatedAt'>) => void,
+): void {
+  addTask({
+    id: crypto.randomUUID(),
+    title: template.title,
+    estimatedMinutes: template.estimatedMinutes,
+    color: template.color,
+    status: 'pending',
+    priority: template.priority,
+    tags: template.tags,
+    recurringTemplateId: template.id,
+  });
+}

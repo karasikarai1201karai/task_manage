@@ -23,7 +23,8 @@ import { useStore } from '@/store/appStore';
 import { useTimelineScale } from '@/hooks/useTimelineScale';
 import { TASK_COLOR_MAP } from '@/lib/constants';
 import { today, timeToMinutes } from '@/lib/utils/time';
-import { materializeRecurringTasks } from '@/lib/utils/recurring';
+import { materializeRecurringTasks, materializeOnCompletionTask, hasActiveInstance } from '@/lib/utils/recurring';
+import { loadRecurringTemplates } from '@/lib/utils/recurringStorage';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, TimeString, ScheduledSlot } from '@/types';
@@ -84,6 +85,13 @@ export function AppShell() {
   useEffect(() => {
     if (!isLoaded) return;
     materializeRecurringTasks(today(), tasks, addTask, scheduleTask);
+
+    // 習慣タスク（onCompletion）: インスタンスが1件も残っていなければ補充する
+    loadRecurringTemplates()
+      .filter(t => t.recurrenceType === 'onCompletion')
+      .forEach(t => {
+        if (!hasActiveInstance(t.id, tasks)) materializeOnCompletionTask(t, addTask);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, currentDate, addTask, scheduleTask]);
 
@@ -191,6 +199,26 @@ export function AppShell() {
     setHighlightTaskId(closestTaskId);
     setTimeout(() => setHighlightTaskId(null), 2500);
   }, [tasks, dayPlans, currentDate]);
+
+  // 習慣タスク（onCompletion）: 完了を検知したら即座に次のインスタンスを生成する。
+  // スケジュール有無を問わず全タスクを対象にする（習慣タスクは基本的にインボックスの未スケジュール状態のため）
+  const prevTasksForHabitRef = useRef(tasks);
+  useEffect(() => {
+    const prevTasks = prevTasksForHabitRef.current;
+    const newlyCompleted = tasks.filter(t => {
+      if (!t.recurringTemplateId || t.status !== 'completed') return false;
+      const prevTask = prevTasks.find(p => p.id === t.id);
+      return prevTask && prevTask.status !== 'completed';
+    });
+    prevTasksForHabitRef.current = tasks;
+    if (newlyCompleted.length === 0) return;
+
+    const templates = loadRecurringTemplates();
+    newlyCompleted.forEach(task => {
+      const template = templates.find(t => t.id === task.recurringTemplateId && t.recurrenceType === 'onCompletion');
+      if (template) materializeOnCompletionTask(template, addTask);
+    });
+  }, [tasks, addTask]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),

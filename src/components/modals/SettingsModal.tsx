@@ -12,9 +12,10 @@ import { cn } from '@/lib/utils';
 import type { AppConfig, StoredData, RecurringTemplate } from '@/types';
 
 const RECURRENCE_LABELS: Record<RecurringTemplate['recurrenceType'], string> = {
-  daily:    '毎日',
-  weekdays: '平日のみ',
-  weekly:   '毎週',
+  daily:        '毎日',
+  weekdays:     '平日のみ',
+  weekly:       '毎週',
+  onCompletion: '習慣',
 };
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 

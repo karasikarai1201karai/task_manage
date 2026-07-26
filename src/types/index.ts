@@ -26,7 +26,7 @@ export interface Task {
   materializedDate?: DateString;
 }
 
-export type RecurrenceType = 'daily' | 'weekdays' | 'weekly';
+export type RecurrenceType = 'daily' | 'weekdays' | 'weekly' | 'onCompletion';
 
 export interface RecurringTemplate {
   id: string;

@@ -8,7 +8,7 @@ import { TASK_COLORS } from '@/types';
 import { TASK_COLOR_DOT } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { addRecurringTemplate } from '@/lib/utils/recurringStorage';
-import { materializeRecurringTasks } from '@/lib/utils/recurring';
+import { materializeRecurringTasks, materializeOnCompletionTask } from '@/lib/utils/recurring';
 import type { TaskColor, TaskPriority, TimeString, DateString, RecurrenceType, RecurringTemplate } from '@/types';
 
 interface TaskFormModalProps {
@@ -19,9 +19,10 @@ interface TaskFormModalProps {
 }
 
 const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
-  { value: 'daily',    label: '毎日' },
-  { value: 'weekdays', label: '平日のみ' },
-  { value: 'weekly',   label: '毎週' },
+  { value: 'daily',        label: '毎日' },
+  { value: 'weekdays',     label: '平日のみ' },
+  { value: 'weekly',       label: '毎週' },
+  { value: 'onCompletion', label: '習慣' },
 ];
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -62,7 +63,8 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const isValid = title.trim().length > 0 && (destination === 'inbox' || startTime !== '');
+  const isHabit = isRecurring && recurrenceType === 'onCompletion';
+  const isValid = title.trim().length > 0 && (isHabit || destination === 'inbox' || startTime !== '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,12 +80,16 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
         tags: [],
         recurrenceType,
         weeklyDay: recurrenceType === 'weekly' ? weeklyDay : undefined,
-        defaultStartTime: destination === 'timeline' && startTime ? (startTime as TimeString) : undefined,
+        defaultStartTime: !isHabit && destination === 'timeline' && startTime ? (startTime as TimeString) : undefined,
         createdAt: new Date().toISOString(),
-        skipIfPrevIncomplete,
+        skipIfPrevIncomplete: isHabit ? undefined : skipIfPrevIncomplete,
       };
       addRecurringTemplate(template);
-      materializeRecurringTasks(defaultDate ?? currentDate, tasks, addTask, scheduleTask);
+      if (isHabit) {
+        materializeOnCompletionTask(template, addTask);
+      } else {
+        materializeRecurringTasks(defaultDate ?? currentDate, tasks, addTask, scheduleTask);
+      }
     } else {
       const id: string = crypto.randomUUID();
 
@@ -264,45 +270,54 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
                             ))}
                           </div>
                         )}
-                        <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                          <input
-                            type="checkbox"
-                            checked={skipIfPrevIncomplete}
-                            onChange={e => setSkipIfPrevIncomplete(e.target.checked)}
-                            className="accent-blue-600"
-                          />
-                          前回分が未完了のときは次を生成しない
-                        </label>
+                        {recurrenceType !== 'onCompletion' && (
+                          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                            <input
+                              type="checkbox"
+                              checked={skipIfPrevIncomplete}
+                              onChange={e => setSkipIfPrevIncomplete(e.target.checked)}
+                              className="accent-blue-600"
+                            />
+                            前回分が未完了のときは次を生成しない
+                          </label>
+                        )}
+                        {recurrenceType === 'onCompletion' && (
+                          <p className="text-xs text-gray-400 dark:text-gray-600">
+                            時間指定なしでインボックスに追加され、完了するたびに次が生成されます
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* 追加先 */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                      追加先
-                    </label>
-                    <div className="flex gap-2">
-                      {(['inbox', 'timeline'] as const).map(dest => (
-                        <button
-                          key={dest}
-                          type="button"
-                          onClick={() => setDestination(dest)}
-                          className={cn(
-                            'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
-                            destination === dest
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
-                          )}
-                        >
-                          {dest === 'inbox' ? 'インボックス' : 'タイムライン'}
-                        </button>
-                      ))}
+                  {/* 追加先（習慣タスクは常にインボックスのため非表示） */}
+                  {!isHabit && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        追加先
+                      </label>
+                      <div className="flex gap-2">
+                        {(['inbox', 'timeline'] as const).map(dest => (
+                          <button
+                            key={dest}
+                            type="button"
+                            onClick={() => setDestination(dest)}
+                            className={cn(
+                              'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
+                              destination === dest
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
+                            )}
+                          >
+                            {dest === 'inbox' ? 'インボックス' : 'タイムライン'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* 開始時刻（タイムライン選択時のみ） */}
-                  {destination === 'timeline' && (
+                  {!isHabit && destination === 'timeline' && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
                         開始時刻 <span className="text-red-500">*</span>

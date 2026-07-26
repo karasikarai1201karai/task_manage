@@ -15,9 +15,10 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
 ];
 
 const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
-  { value: 'daily',    label: '毎日' },
-  { value: 'weekdays', label: '平日のみ' },
-  { value: 'weekly',   label: '毎週' },
+  { value: 'daily',        label: '毎日' },
+  { value: 'weekdays',     label: '平日のみ' },
+  { value: 'weekly',       label: '毎週' },
+  { value: 'onCompletion', label: '習慣' },
 ];
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -64,6 +65,7 @@ export function RecurringTemplateEditModal({ template, open, onClose, onSave }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, template.id]);
 
+  const isHabit = recurrenceType === 'onCompletion';
   const isValid = title.trim().length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -76,8 +78,8 @@ export function RecurringTemplateEditModal({ template, open, onClose, onSave }: 
       priority,
       recurrenceType,
       weeklyDay: recurrenceType === 'weekly' ? weeklyDay : undefined,
-      defaultStartTime: startTime ? (startTime as TimeString) : undefined,
-      skipIfPrevIncomplete,
+      defaultStartTime: !isHabit && startTime ? (startTime as TimeString) : undefined,
+      skipIfPrevIncomplete: isHabit ? undefined : skipIfPrevIncomplete,
     });
     onClose();
   };
@@ -178,30 +180,39 @@ export function RecurringTemplateEditModal({ template, open, onClose, onSave }: 
                   ))}
                 </div>
               )}
-              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mt-2">
-                <input
-                  type="checkbox"
-                  checked={skipIfPrevIncomplete}
-                  onChange={e => setSkipIfPrevIncomplete(e.target.checked)}
-                  className="accent-blue-600"
-                />
-                前回分が未完了のときは次を生成しない
-              </label>
+              {!isHabit && (
+                <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={skipIfPrevIncomplete}
+                    onChange={e => setSkipIfPrevIncomplete(e.target.checked)}
+                    className="accent-blue-600"
+                  />
+                  前回分が未完了のときは次を生成しない
+                </label>
+              )}
+              {isHabit && (
+                <p className="text-xs text-gray-400 dark:text-gray-600 mt-2">
+                  時間指定なしでインボックスに追加され、完了するたびに次が生成されます
+                </p>
+              )}
             </div>
 
             {/* 開始時刻 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                開始時刻（未設定ならインボックスに追加）
-              </label>
-              <input
-                type="time"
-                step={900}
-                value={startTime}
-                onChange={e => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            {!isHabit && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                  開始時刻（未設定ならインボックスに追加）
+                </label>
+                <input
+                  type="time"
+                  step={900}
+                  value={startTime}
+                  onChange={e => setStartTime(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
 
             {/* 優先度 */}
             <div>
