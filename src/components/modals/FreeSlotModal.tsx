@@ -3,7 +3,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Clock } from 'lucide-react';
 import { useStore } from '@/store/appStore';
-import { TASK_COLOR_MAP } from '@/lib/constants';
+import { TASK_COLOR_MAP, PRIORITY_RANK } from '@/lib/constants';
 import { formatDuration } from '@/lib/utils/time';
 import { cn } from '@/lib/utils';
 import type { FreeSlot } from '@/types';
@@ -21,7 +21,11 @@ export function FreeSlotModal({ slot, open, onClose }: FreeSlotModalProps) {
   const scheduleTask = useStore(s => s.scheduleTask);
 
   const todayScheduledIds = new Set((dayPlans[currentDate]?.slots ?? []).map(s => s.taskId));
-  const inboxTasks = tasks.filter(t => !todayScheduledIds.has(t.id) && t.status !== 'completed');
+  const inboxTasks = tasks
+    .filter(t => !todayScheduledIds.has(t.id) && t.status !== 'completed' && !t.isDeferred)
+    .sort((a, b) =>
+      PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.estimatedMinutes - b.estimatedMinutes
+    );
 
   const handleSelect = (taskId: string) => {
     scheduleTask(taskId, currentDate, slot.startTime);

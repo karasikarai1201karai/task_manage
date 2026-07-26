@@ -127,9 +127,9 @@ export function AppShell() {
     }
   }, [config.theme]);
 
-  // インボックス件数（今日未スケジュール・未完了）
+  // インボックス件数（今日未スケジュール・未完了・保留中でないもの）
   const todayScheduledIds = new Set((dayPlans[currentDate]?.slots ?? []).map(s => s.taskId));
-  const inboxCount = tasks.filter(t => !todayScheduledIds.has(t.id) && t.status !== 'completed').length;
+  const inboxCount = tasks.filter(t => !todayScheduledIds.has(t.id) && t.status !== 'completed' && !t.isDeferred).length;
 
   // 「今すぐやること」: 今日の未完了タスクのうち現在時刻に最も近いものをハイライト＆スクロール
   const handleNowClick = useCallback(() => {
