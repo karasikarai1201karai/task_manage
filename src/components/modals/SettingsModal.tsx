@@ -330,6 +330,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           <p className="text-xs text-gray-400 dark:text-gray-600">
                             {RECURRENCE_LABELS[t.recurrenceType]}
                             {t.recurrenceType === 'weekly' && t.weeklyDay != null && `（${WEEKDAY_LABELS[t.weeklyDay]}）`}
+                            {t.skipIfPrevIncomplete && ' ・前回未完了ならスキップ'}
                           </p>
                         </div>
                       </div>

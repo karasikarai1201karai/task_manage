@@ -36,3 +36,4 @@ AIが実装を完了したタスクをここに記録する。
 [DONE 2026-07-26] feat: タスク開始時刻の通知を追加。AppConfigに`notifyOnTaskStart`を追加し、SettingsModalでオプトイン（Notification.requestPermission）。AppShellの60秒間隔チェックで開始時刻に達したタスクをNotification+vibrateで通知（タブを開いている間のみ有効）
 [DONE 2026-07-26] feat: タスク完了直後に次の未完了タスクへの導線を追加。tasksの変化を監視してpending/in-progress→completedへの遷移を検知し、handleNowClickと共通化したfindClosestIncompleteTaskId()で次のタスクを数秒間ハイライト
 [DONE 2026-07-26] fix: 繰り返しタスクが日付送りナビゲーションで重複生成されるバグを修正。AppShellのマテリアライズ呼び出しをcurrentDate（閲覧中の日付）からtoday()（実際の今日）に変更し、重複判定もテンプレート側の単一フィールド`lastMaterialized`ではなく、Taskに追加した`materializedDate`を実際のtasks配列から検索する方式に変更（KV同期されるタスク配列を正とすることで、日付送りだけでなく複数端末での重複生成も同時に解消）。不要になったlastMaterialized/markTemplateMaterializedは削除
+[DONE 2026-07-26] feat: 繰り返しタスクに「前回分が未完了なら次を生成しない」オプションを追加。RecurringTemplateに`skipIfPrevIncomplete`を追加し、isTemplateDueOnで同テンプレートの未完了インスタンスの有無をチェック。TaskFormModal/RecurringTemplateEditModalにチェックボックスを追加、SettingsModalのテンプレート一覧にも表示

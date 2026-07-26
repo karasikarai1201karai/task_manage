@@ -30,6 +30,7 @@ export interface RecurringTemplateEditValues {
   recurrenceType: RecurrenceType;
   weeklyDay?: number;
   defaultStartTime?: TimeString;
+  skipIfPrevIncomplete?: boolean;
 }
 
 interface RecurringTemplateEditModalProps {
@@ -47,6 +48,7 @@ export function RecurringTemplateEditModal({ template, open, onClose, onSave }: 
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>(template.recurrenceType);
   const [weeklyDay,      setWeeklyDay]      = useState(template.weeklyDay ?? new Date().getDay());
   const [startTime,      setStartTime]      = useState(template.defaultStartTime ?? '');
+  const [skipIfPrevIncomplete, setSkipIfPrevIncomplete] = useState(!!template.skipIfPrevIncomplete);
 
   // モーダルを開くたびに対象テンプレートの現在値でフォームを初期化する
   useEffect(() => {
@@ -58,6 +60,7 @@ export function RecurringTemplateEditModal({ template, open, onClose, onSave }: 
     setRecurrenceType(template.recurrenceType);
     setWeeklyDay(template.weeklyDay ?? new Date().getDay());
     setStartTime(template.defaultStartTime ?? '');
+    setSkipIfPrevIncomplete(!!template.skipIfPrevIncomplete);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, template.id]);
 
@@ -74,6 +77,7 @@ export function RecurringTemplateEditModal({ template, open, onClose, onSave }: 
       recurrenceType,
       weeklyDay: recurrenceType === 'weekly' ? weeklyDay : undefined,
       defaultStartTime: startTime ? (startTime as TimeString) : undefined,
+      skipIfPrevIncomplete,
     });
     onClose();
   };
@@ -174,6 +178,15 @@ export function RecurringTemplateEditModal({ template, open, onClose, onSave }: 
                   ))}
                 </div>
               )}
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mt-2">
+                <input
+                  type="checkbox"
+                  checked={skipIfPrevIncomplete}
+                  onChange={e => setSkipIfPrevIncomplete(e.target.checked)}
+                  className="accent-blue-600"
+                />
+                前回分が未完了のときは次を生成しない
+              </label>
             </div>
 
             {/* 開始時刻 */}

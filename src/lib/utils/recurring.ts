@@ -8,6 +8,13 @@ export function isTemplateDueOn(template: RecurringTemplate, date: DateString, t
   );
   if (alreadyMaterialized) return false;
 
+  if (template.skipIfPrevIncomplete) {
+    const hasIncompletePrev = tasks.some(
+      t => t.recurringTemplateId === template.id && t.status !== 'completed'
+    );
+    if (hasIncompletePrev) return false;
+  }
+
   const dayOfWeek = getDay(parseISO(date));
   switch (template.recurrenceType) {
     case 'daily':    return true;

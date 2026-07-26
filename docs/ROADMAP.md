@@ -12,7 +12,6 @@ AIへ: このファイルから **未着手のタスクを1つ** 選んで実装
 
 ## M サイズ（1〜2時間）
 
-- [ ] 繰り返しタスクを「前回分が未完了なら次を生成しない」オプションを追加する: 上記バグ修正後の挙動は「当日になれば生成する」だが、ユーザーが対応しきれず未完了のまま溜まっていくケースがある。`RecurringTemplate` に `skipIfPrevIncomplete?: boolean` 等を追加し、ONの場合は「同テンプレートの直近のインスタンスが未完了（pending/in-progress）の間は新規生成をスキップする」ようにする。`TaskFormModal`/`RecurringTemplateEditModal`/`SettingsModal` にトグルを追加
 - [ ] 「習慣タスク（都度タスク）」機能を追加する: 洗濯・皿洗いなど、カレンダー上の特定の日ではなく「完了したらまた次が現れる」時間指定不要の日常タスクを実装する。既存の繰り返しテンプレート機構を拡張する形で:
   - → `RecurrenceType` に `'onCompletion'` を追加（`weeklyDay`/`defaultStartTime` は基本的に使わない想定）
   - → `AppShell.tsx` に既存する「タスク完了を検知するuseEffect」（次タスクへのハイライト機能で使っているtasksの差分監視ロジック）を拡張し、完了したタスクが `recurringTemplateId` を持ち、そのテンプレートが `onCompletion` なら即座に新しいインスタンスを1件マテリアライズする（インボックスへ、未スケジュールで追加）

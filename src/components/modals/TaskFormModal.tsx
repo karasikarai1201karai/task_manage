@@ -44,6 +44,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('daily');
   const [weeklyDay,      setWeeklyDay]      = useState(new Date().getDay());
   const [showDetails,    setShowDetails]    = useState(!!defaultStartTime);
+  const [skipIfPrevIncomplete, setSkipIfPrevIncomplete] = useState(false);
 
   // モーダルを開くたびにフォームをリセット（キャンセル後に前回の入力が残らないようにする）
   useEffect(() => {
@@ -57,6 +58,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     setRecurrenceType('daily');
     setWeeklyDay(new Date().getDay());
     setShowDetails(!!defaultStartTime);
+    setSkipIfPrevIncomplete(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -78,6 +80,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
         weeklyDay: recurrenceType === 'weekly' ? weeklyDay : undefined,
         defaultStartTime: destination === 'timeline' && startTime ? (startTime as TimeString) : undefined,
         createdAt: new Date().toISOString(),
+        skipIfPrevIncomplete,
       };
       addRecurringTemplate(template);
       materializeRecurringTasks(defaultDate ?? currentDate, tasks, addTask, scheduleTask);
@@ -107,6 +110,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     setDestination('inbox');
     setIsRecurring(false);
     setRecurrenceType('daily');
+    setSkipIfPrevIncomplete(false);
     onClose();
   };
 
@@ -260,6 +264,15 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
                             ))}
                           </div>
                         )}
+                        <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                          <input
+                            type="checkbox"
+                            checked={skipIfPrevIncomplete}
+                            onChange={e => setSkipIfPrevIncomplete(e.target.checked)}
+                            className="accent-blue-600"
+                          />
+                          前回分が未完了のときは次を生成しない
+                        </label>
                       </div>
                     )}
                   </div>

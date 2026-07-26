@@ -39,6 +39,7 @@ export interface RecurringTemplate {
   weeklyDay?: number;
   defaultStartTime?: TimeString;
   createdAt: string;
+  skipIfPrevIncomplete?: boolean;
 }
 
 export interface ScheduledSlot {
