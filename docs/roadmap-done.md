@@ -39,3 +39,4 @@ AIが実装を完了したタスクをここに記録する。
 [DONE 2026-07-26] feat: 繰り返しタスクに「前回分が未完了なら次を生成しない」オプションを追加。RecurringTemplateに`skipIfPrevIncomplete`を追加し、isTemplateDueOnで同テンプレートの未完了インスタンスの有無をチェック。TaskFormModal/RecurringTemplateEditModalにチェックボックスを追加、SettingsModalのテンプレート一覧にも表示
 [DONE 2026-07-26] feat: 「習慣タスク（都度タスク）」機能を追加。RecurrenceTypeに`onCompletion`を追加し、完了イベントをトリガーに即座に次のインスタンスを生成（日付ベースの重複判定は通さないため同日中に何度でも完了→再生成できる）。AppShellに専用のタスク完了監視useEffectを追加し、インスタンスが1件も残っていない場合の補充ロジックも既存のマテリアライズ用useEffectに追加。TaskFormModal/RecurringTemplateEditModalの繰り返しパターンに「習慣」を追加し、選択時は開始時刻・曜日・追加先の入力を非表示に
 [DONE 2026-07-26] feat: インボックスのタスクカードに「進行中(in-progress)」状態の表示・切替を追加（ROADMAPが空だったため、TaskBlockには既にあるがInboxTaskCardには無い一貫性の欠如をコードベース調査で発見し実装）。チェックボックスを破線＋ドット表示にし、CircleDotボタンでpending⇄in-progressを切替。習慣タスクは基本的にインボックス常駐のため特に有用。あわせて通知拒否時のフィードバック欠如をバックログに追加
+[DONE 2026-07-26] feat: 通知の許可が拒否されたときにフィードバックを表示。SettingsModalのhandleNotifyToggleに`notifyStatus`を追加し、Notification未対応・許可拒否それぞれのケースでsyncStatusと同じパターンのメッセージを数秒間表示

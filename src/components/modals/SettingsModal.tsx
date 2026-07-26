@@ -118,10 +118,21 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     setRecurringTemplates(updateRecurringTemplate(editingTemplate.id, updates));
   };
 
+  const [notifyStatus, setNotifyStatus] = useState('');
+
   const handleNotifyToggle = async (checked: boolean) => {
-    if (checked && typeof window !== 'undefined' && 'Notification' in window) {
+    if (checked) {
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        setNotifyStatus('このブラウザは通知に対応していません');
+        setTimeout(() => setNotifyStatus(''), 5000);
+        return;
+      }
       const permission = await Notification.requestPermission();
-      if (permission !== 'granted') return;
+      if (permission !== 'granted') {
+        setNotifyStatus('通知が許可されていません。ブラウザの設定から許可してください');
+        setTimeout(() => setNotifyStatus(''), 5000);
+        return;
+      }
     }
     set({ notifyOnTaskStart: checked });
   };
@@ -311,6 +322,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
                 このタブを開いている間のみ有効です（バックグラウンド通知は不可）
               </p>
+              {notifyStatus && (
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1.5 px-1">
+                  {notifyStatus}
+                </p>
+              )}
             </section>
 
             {/* 繰り返しタスク */}
