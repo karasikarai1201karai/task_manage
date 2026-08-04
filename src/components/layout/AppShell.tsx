@@ -29,6 +29,9 @@ import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, TimeString, ScheduledSlot } from '@/types';
 
+const SWIPE_THRESHOLD_PX = 60;
+const SWIPE_EXCLUDE_SELECTOR = 'button, input, textarea, a, [data-task-card], [data-task-id]';
+
 function getNowMinutes(): number {
   return timeToMinutes(
     `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}` as TimeString,
@@ -59,6 +62,7 @@ export function AppShell() {
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
   const mobileScrollRef  = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
+  const swipeStartRef    = useRef<{ x: number; y: number } | null>(null);
 
   // モバイル/デスクトップ用Timelineは常に両方DOMにマウントされている（Tailwindの
   // md:hidden/hidden md:block はCSS表示切替のみ）ため、実際に表示されている方のrefを選ぶ
@@ -275,6 +279,36 @@ export function AppShell() {
   // インボックスアイテムをドラッグ中のみゴミ箱を表示
   const showTrash = activeDragType === 'inbox';
 
+  // モバイル: タスクページ/タイムライン間の左右スワイプ切替
+  // （タスクカードのスワイプ完了操作やドラッグ配置と競合しないよう、それらの要素上で
+  //   始まったジェスチャーは無視する）
+  const handleSwipeStart = useCallback((e: React.PointerEvent) => {
+    if (!e.isPrimary) return;
+    if ((e.target as HTMLElement).closest(SWIPE_EXCLUDE_SELECTOR)) {
+      swipeStartRef.current = null;
+      return;
+    }
+    swipeStartRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const handleSwipeEnd = useCallback((e: React.PointerEvent) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) return;
+
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return;
+    if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    if (dx < 0 && activeTab === 'inbox') setActiveTab('timeline');
+    else if (dx > 0 && activeTab === 'timeline') setActiveTab('inbox');
+  }, [activeTab]);
+
+  const handleSwipeCancel = useCallback(() => {
+    swipeStartRef.current = null;
+  }, []);
+
   return (
     <DndContext
       sensors={sensors}
@@ -291,11 +325,24 @@ export function AppShell() {
           </aside>
 
           <main className="flex-1 overflow-hidden">
-            <div className="md:hidden h-full">
-              {activeTab === 'inbox'
-                ? <InboxPanel />
-                : <Timeline scrollRef={mobileScrollRef} highlightTaskId={highlightTaskId} />
-              }
+            <div
+              className="md:hidden h-full overflow-hidden"
+              onPointerDown={handleSwipeStart}
+              onPointerUp={handleSwipeEnd}
+              onPointerCancel={handleSwipeCancel}
+            >
+              <div
+                key={activeTab}
+                className={cn(
+                  'h-full',
+                  activeTab === 'timeline' ? 'animate-slide-in-right' : 'animate-slide-in-left',
+                )}
+              >
+                {activeTab === 'inbox'
+                  ? <InboxPanel />
+                  : <Timeline scrollRef={mobileScrollRef} highlightTaskId={highlightTaskId} />
+                }
+              </div>
             </div>
             <div className="hidden md:block h-full">
               <Timeline scrollRef={desktopScrollRef} highlightTaskId={highlightTaskId} />

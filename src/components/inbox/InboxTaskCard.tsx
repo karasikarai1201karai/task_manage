@@ -109,6 +109,7 @@ export function InboxTaskCard({ task, isHighlighted }: InboxTaskCardProps) {
 
         <div
           ref={setNodeRef}
+          data-task-card
           className={cn(
             'group relative flex items-center gap-2 p-2.5 rounded-lg border select-none',
             !isSwiping && 'transition-[opacity,transform] duration-200',

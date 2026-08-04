@@ -21,10 +21,20 @@ const config: Config = {
           '90%':  { transform: 'scale(1.1)' },
           '100%': { transform: 'scale(1)' },
         },
+        'slide-in-right': {
+          '0%':   { transform: 'translateX(24px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        'slide-in-left': {
+          '0%':   { transform: 'translateX(-24px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
       },
       animation: {
         'task-complete-bounce': 'task-complete-bounce 400ms ease-out forwards',
         'check-pop': 'check-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        'slide-in-right': 'slide-in-right 200ms ease-out',
+        'slide-in-left': 'slide-in-left 200ms ease-out',
       },
     },
   },
