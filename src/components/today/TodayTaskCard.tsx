@@ -24,37 +24,49 @@ export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
 
   const pressStart = useRef({ x: 0, y: 0 });
   const swipeXRef  = useRef(0);
+  const multiTouch = useRef(false);
 
   const [swipeX, setSwipeXState] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
 
   const setSwipeX = (x: number) => { swipeXRef.current = x; setSwipeXState(x); };
 
+  const cancelSwipe = useCallback(() => {
+    setIsSwiping(false);
+    setSwipeX(0);
+  }, []);
+
   const onPointerDown = (e: React.PointerEvent) => {
-    if (!e.isPrimary) return;
+    if (!e.isPrimary) {
+      // 2本目の指 = ピンチ操作。スワイプ判定を無効化する
+      multiTouch.current = true;
+      cancelSwipe();
+      return;
+    }
+    multiTouch.current = false;
     pressStart.current = { x: e.clientX, y: e.clientY };
   };
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!e.isPrimary || multiTouch.current) return;
     const dx = e.clientX - pressStart.current.x;
     const dy = e.clientY - pressStart.current.y;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_ACTIVATE_PX) {
       setIsSwiping(true);
       setSwipeX(dx);
     } else if (Math.abs(dy) > CANCEL_MOVE_PX) {
-      setIsSwiping(false);
-      setSwipeX(0);
+      cancelSwipe();
     }
-  }, []);
+  }, [cancelSwipe]);
 
-  const endSwipe = useCallback(() => {
-    if (Math.abs(swipeXRef.current) > SWIPE_COMPLETE_PX) {
+  const endSwipe = useCallback((e: React.PointerEvent) => {
+    if (!e.isPrimary) return;
+    if (!multiTouch.current && Math.abs(swipeXRef.current) > SWIPE_COMPLETE_PX) {
       navigator.vibrate?.(12);
       completeTask(task.id);
     }
-    setIsSwiping(false);
-    setSwipeX(0);
-  }, [completeTask, task.id]);
+    cancelSwipe();
+  }, [completeTask, task.id, cancelSwipe]);
 
   const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_COMPLETE_PX, 1);
   const isInProgress  = task.status === 'in-progress';
@@ -62,10 +74,11 @@ export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
   return (
     <div className="relative" data-task-card>
       <div
-        className="absolute inset-0 flex items-center justify-center rounded-lg bg-green-500 text-white"
+        className="absolute inset-0 flex items-center justify-center gap-1.5 rounded-lg bg-green-500 text-white"
         style={{ opacity: swipeProgress }}
       >
         <Check className="w-4 h-4" strokeWidth={3} />
+        <span className="text-xs font-medium opacity-80">スワイプで完了</span>
       </div>
 
       <div
@@ -79,7 +92,7 @@ export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endSwipe}
-        onPointerCancel={endSwipe}
+        onPointerCancel={cancelSwipe}
       >
         {/* 優先度バー */}
         <div className={cn('w-1 self-stretch rounded-full shrink-0', PRIORITY_BAR_COLOR[task.priority])} aria-hidden="true" />
