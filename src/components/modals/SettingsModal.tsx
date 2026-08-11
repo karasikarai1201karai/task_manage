@@ -24,7 +24,6 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -65,29 +64,6 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
-function HourSelect({
-  value,
-  onChange,
-  min,
-  max,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  max?: number;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={e => onChange(Number(e.target.value))}
-      className="text-sm px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-    >
-      {HOUR_OPTIONS.filter(h => (min == null || h >= min) && (max == null || h <= max)).map(h => (
-        <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-      ))}
-    </select>
-  );
-}
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const config          = useStore(s => s.config);
@@ -116,25 +92,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const handleSaveTemplate = (updates: RecurringTemplateEditValues) => {
     if (!editingTemplate) return;
     setRecurringTemplates(updateRecurringTemplate(editingTemplate.id, updates));
-  };
-
-  const [notifyStatus, setNotifyStatus] = useState('');
-
-  const handleNotifyToggle = async (checked: boolean) => {
-    if (checked) {
-      if (typeof window === 'undefined' || !('Notification' in window)) {
-        setNotifyStatus('このブラウザは通知に対応していません');
-        setTimeout(() => setNotifyStatus(''), 5000);
-        return;
-      }
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        setNotifyStatus('通知が許可されていません。ブラウザの設定から許可してください');
-        setTimeout(() => setNotifyStatus(''), 5000);
-        return;
-      }
-    }
-    set({ notifyOnTaskStart: checked });
   };
 
   const handleTestConnection = async () => {
@@ -251,29 +208,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
             </section>
 
-            {/* 稼働時間 */}
-            <section className="mb-5">
-              <SectionLabel>稼働時間</SectionLabel>
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 divide-y divide-gray-100 dark:divide-gray-800">
-                <SettingRow label="開始時刻">
-                  <HourSelect
-                    value={config.dayStartHour}
-                    min={0}
-                    max={config.dayEndHour - 1}
-                    onChange={v => set({ dayStartHour: v })}
-                  />
-                </SettingRow>
-                <SettingRow label="終了時刻">
-                  <HourSelect
-                    value={config.dayEndHour}
-                    min={config.dayStartHour + 1}
-                    max={23}
-                    onChange={v => set({ dayEndHour: v })}
-                  />
-                </SettingRow>
-              </div>
-            </section>
-
             {/* タスク設定 */}
             <section className="mb-5">
               <SectionLabel>タスク</SectionLabel>
@@ -306,27 +240,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
                 アプリを開いた際、前日の未完了タスクをインボックスに追加します
               </p>
-            </section>
-
-            {/* 通知 */}
-            <section className="mb-5">
-              <SectionLabel>通知</SectionLabel>
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4">
-                <SettingRow label="タスク開始時刻に通知">
-                  <Toggle
-                    checked={!!config.notifyOnTaskStart}
-                    onChange={handleNotifyToggle}
-                  />
-                </SettingRow>
-              </div>
-              <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5 px-1">
-                このタブを開いている間のみ有効です（バックグラウンド通知は不可）
-              </p>
-              {notifyStatus && (
-                <p className="text-xs text-red-500 dark:text-red-400 mt-1.5 px-1">
-                  {notifyStatus}
-                </p>
-              )}
             </section>
 
             {/* 繰り返しタスク */}

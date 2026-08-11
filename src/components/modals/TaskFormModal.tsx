@@ -9,13 +9,14 @@ import { TASK_COLOR_DOT } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { addRecurringTemplate } from '@/lib/utils/recurringStorage';
 import { materializeRecurringTasks, materializeOnCompletionTask } from '@/lib/utils/recurring';
-import type { TaskColor, TaskPriority, TimeString, DateString, RecurrenceType, RecurringTemplate } from '@/types';
+import { today } from '@/lib/utils/time';
+import type { TaskColor, TaskPriority, DateString, RecurrenceType, RecurringTemplate } from '@/types';
 
 interface TaskFormModalProps {
   open: boolean;
   onClose: () => void;
   defaultDate?: DateString;
-  defaultStartTime?: TimeString;
+  defaultStartTime?: string;
 }
 
 const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
@@ -30,21 +31,16 @@ const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: TaskFormModalProps) {
   const addTask      = useStore(s => s.addTask);
   const scheduleTask = useStore(s => s.scheduleTask);
-  const currentDate  = useStore(s => s.currentDate);
   const tasks        = useStore(s => s.tasks);
   const config       = useStore(s => s.config);
 
   const [title,        setTitle]        = useState('');
   const [minutes,      setMinutes]      = useState(config.defaultTaskDuration);
   const [color,        setColor]        = useState<TaskColor>('blue');
-  const [startTime,    setStartTime]    = useState(defaultStartTime ?? '');
-  const [destination,  setDestination]  = useState<'inbox' | 'timeline'>(
-    defaultStartTime ? 'timeline' : 'inbox'
-  );
   const [isRecurring,    setIsRecurring]    = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('daily');
   const [weeklyDay,      setWeeklyDay]      = useState(new Date().getDay());
-  const [showDetails,    setShowDetails]    = useState(!!defaultStartTime);
+  const [showDetails,    setShowDetails]    = useState(false);
   const [skipIfPrevIncomplete, setSkipIfPrevIncomplete] = useState(false);
 
   // モーダルを開くたびにフォームをリセット（キャンセル後に前回の入力が残らないようにする）
@@ -53,18 +49,16 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     setTitle('');
     setMinutes(config.defaultTaskDuration);
     setColor('blue');
-    setStartTime(defaultStartTime ?? '');
-    setDestination(defaultStartTime ? 'timeline' : 'inbox');
     setIsRecurring(false);
     setRecurrenceType('daily');
     setWeeklyDay(new Date().getDay());
-    setShowDetails(!!defaultStartTime);
+    setShowDetails(false);
     setSkipIfPrevIncomplete(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const isHabit = isRecurring && recurrenceType === 'onCompletion';
-  const isValid = title.trim().length > 0 && (isHabit || destination === 'inbox' || startTime !== '');
+  const isValid = title.trim().length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +74,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
         tags: [],
         recurrenceType,
         weeklyDay: recurrenceType === 'weekly' ? weeklyDay : undefined,
-        defaultStartTime: !isHabit && destination === 'timeline' && startTime ? (startTime as TimeString) : undefined,
+        defaultStartTime: undefined,
         createdAt: new Date().toISOString(),
         skipIfPrevIncomplete: isHabit ? undefined : skipIfPrevIncomplete,
       };
@@ -88,13 +82,11 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
       if (isHabit) {
         materializeOnCompletionTask(template, addTask);
       } else {
-        materializeRecurringTasks(defaultDate ?? currentDate, tasks, addTask, scheduleTask);
+        materializeRecurringTasks(defaultDate ?? today(), tasks, addTask, scheduleTask);
       }
     } else {
-      const id: string = crypto.randomUUID();
-
       addTask({
-        id,
+        id: crypto.randomUUID(),
         title: title.trim(),
         estimatedMinutes: minutes,
         color,
@@ -102,18 +94,12 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
         priority: 'medium' as TaskPriority,
         tags: [],
       });
-
-      if (destination === 'timeline' && startTime) {
-        scheduleTask(id, defaultDate ?? currentDate, startTime as TimeString);
-      }
     }
 
     // フォームリセット
     setTitle('');
     setMinutes(config.defaultTaskDuration);
     setColor('blue');
-    setStartTime('');
-    setDestination('inbox');
     setIsRecurring(false);
     setRecurrenceType('daily');
     setSkipIfPrevIncomplete(false);
@@ -184,7 +170,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
                 className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 <ChevronRight className={cn('w-3.5 h-3.5 transition-transform', showDetails && 'rotate-90')} />
-                詳細設定（色・繰り返し・追加先）
+                詳細設定（色・繰り返し）
               </button>
 
               {showDetails && (
@@ -290,47 +276,6 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
                     )}
                   </div>
 
-                  {/* 追加先（習慣タスクは常にインボックスのため非表示） */}
-                  {!isHabit && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                        追加先
-                      </label>
-                      <div className="flex gap-2">
-                        {(['inbox', 'timeline'] as const).map(dest => (
-                          <button
-                            key={dest}
-                            type="button"
-                            onClick={() => setDestination(dest)}
-                            className={cn(
-                              'flex-1 py-1.5 text-xs rounded-lg border transition-colors',
-                              destination === dest
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
-                            )}
-                          >
-                            {dest === 'inbox' ? 'インボックス' : 'タイムライン'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 開始時刻（タイムライン選択時のみ） */}
-                  {!isHabit && destination === 'timeline' && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                        開始時刻 <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="time"
-                        step={900}
-                        value={startTime}
-                        onChange={e => setStartTime(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  )}
                 </div>
               )}
             </div>
