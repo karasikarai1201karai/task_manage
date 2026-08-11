@@ -18,6 +18,13 @@ body {
   padding: 0;
 }
 
+/* iOS Safari では 100vh がURLバー込みの高さになり下部が見切れるため、
+   対応ブラウザでは動的ビューポート高さ(dvh)を使う */
+.app-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* iOS Safari はフォントサイズ16px未満の入力欄にフォーカスすると自動ズームするため、
    タッチ端末では入力系要素を16px以上に固定してズームを防ぐ */
 @media (hover: none) and (pointer: coarse) {

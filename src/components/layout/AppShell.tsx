@@ -93,7 +93,7 @@ export function AppShell() {
   const todoCount = tasks.filter(t => t.status !== 'completed' && !t.isDeferred).length;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
+    <div className="app-viewport flex flex-col bg-gray-50 dark:bg-gray-950 overflow-hidden">
       <Header onSettingsClick={() => setSettingsOpen(true)} onNowClick={handleNowClick} />
 
       <main className="flex-1 overflow-hidden">
