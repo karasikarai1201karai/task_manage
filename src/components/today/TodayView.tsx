@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import { Plus, ChevronDown, Check, Trash2, RotateCcw } from 'lucide-react';
 import { useStore } from '@/store/appStore';
 import { TASK_COLOR_MAP, PRIORITY_RANK } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { today } from '@/lib/utils/time';
 import { TodayTaskCard } from './TodayTaskCard';
 import { TaskFormModal } from '@/components/modals/TaskFormModal';
 import type { Task } from '@/types';
@@ -13,21 +16,23 @@ function CompletedTaskRow({ task }: { task: Task }) {
   const uncompleteTask = useStore(s => s.uncompleteTask);
   const deleteTask     = useStore(s => s.deleteTask);
   return (
-    <div className={cn('group flex items-center gap-2 p-2 rounded-lg border opacity-60', TASK_COLOR_MAP[task.color])}>
+    <div className={cn('group flex items-center gap-2 px-2 py-1 rounded-lg border opacity-60', TASK_COLOR_MAP[task.color])}>
       <button
         onClick={() => uncompleteTask(task.id)}
-        className="w-4 h-4 shrink-0 rounded border-2 border-current bg-current flex items-center justify-center"
+        className="shrink-0 min-w-[36px] min-h-[36px] -ml-1 flex items-center justify-center"
         aria-label="未完了に戻す"
       >
-        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+        <span className="w-4 h-4 rounded border-2 border-current bg-current flex items-center justify-center">
+          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+        </span>
       </button>
       <p className="flex-1 min-w-0 text-xs line-through truncate">{task.title}</p>
       <button
         onClick={() => deleteTask(task.id)}
-        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+        className="opacity-40 group-hover:opacity-100 min-w-[36px] min-h-[36px] -mr-1 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
         aria-label="削除"
       >
-        <Trash2 className="w-3.5 h-3.5" />
+        <Trash2 className="w-4 h-4" />
       </button>
     </div>
   );
@@ -37,21 +42,21 @@ function DeferredTaskRow({ task }: { task: Task }) {
   const updateTask = useStore(s => s.updateTask);
   const deleteTask  = useStore(s => s.deleteTask);
   return (
-    <div className={cn('group flex items-center gap-2 p-2 rounded-lg border opacity-70', TASK_COLOR_MAP[task.color])}>
+    <div className={cn('group flex items-center gap-2 px-2 py-1 rounded-lg border opacity-70', TASK_COLOR_MAP[task.color])}>
       <p className="flex-1 min-w-0 text-xs truncate">{task.title}</p>
       <button
         onClick={() => updateTask(task.id, { isDeferred: false })}
-        className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
         aria-label="戻す"
       >
-        <RotateCcw className="w-3.5 h-3.5" />
+        <RotateCcw className="w-4 h-4" />
       </button>
       <button
         onClick={() => deleteTask(task.id)}
-        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+        className="opacity-40 group-hover:opacity-100 min-w-[36px] min-h-[36px] -mr-1 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
         aria-label="削除"
       >
-        <Trash2 className="w-3.5 h-3.5" />
+        <Trash2 className="w-4 h-4" />
       </button>
     </div>
   );
@@ -101,6 +106,21 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
   const completedTasks = tasks
     .filter(t => t.status === 'completed')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
+
+  // 完了日ごとにグループ化（新しい日付が先頭）
+  const completedGroups: { date: string; tasks: Task[] }[] = [];
+  completedTasks.forEach(t => {
+    const date = t.completedAt?.slice(0, 10) ?? '';
+    const last = completedGroups[completedGroups.length - 1];
+    if (last && last.date === date) last.tasks.push(t);
+    else completedGroups.push({ date, tasks: [t] });
+  });
+
+  const formatDateLabel = (date: string) => {
+    if (!date) return '日付不明';
+    if (date === today()) return '今日';
+    return format(parseISO(date), 'M月d日(EEE)', { locale: ja });
+  };
 
   const deferredTasks = tasks.filter(t => t.isDeferred && t.status !== 'completed');
 
@@ -171,8 +191,24 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
               完了済み ({completedTasks.length})
             </button>
             {showCompleted && (
-              <div className="space-y-1.5 mt-1">
-                {completedTasks.map(task => <CompletedTaskRow key={task.id} task={task} />)}
+              <div className="space-y-3 mt-1">
+                {completedGroups.map(group => (
+                  <div key={group.date || 'unknown'}>
+                    <div className="flex items-center gap-2 mb-1 px-1">
+                      <span className={cn(
+                        'text-xs font-semibold',
+                        group.date === today() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400',
+                      )}>
+                        {formatDateLabel(group.date)}
+                      </span>
+                      <span className="text-xs text-gray-400 dark:text-gray-600">{group.tasks.length}件</span>
+                      <div className="flex-1 border-t border-gray-100 dark:border-gray-800" />
+                    </div>
+                    <div className="space-y-1.5">
+                      {group.tasks.map(task => <CompletedTaskRow key={task.id} task={task} />)}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>

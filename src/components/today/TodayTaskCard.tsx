@@ -101,13 +101,17 @@ export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); navigator.vibrate?.(12); completeTask(task.id); }}
-          className={cn(
-            'w-4 h-4 shrink-0 rounded border-2 border-current opacity-50 hover:opacity-90 hover:bg-current/10 transition-colors flex items-center justify-center',
-            isInProgress && 'border-dashed',
-          )}
+          className="shrink-0 min-w-[40px] min-h-[40px] -my-1.5 -ml-1.5 flex items-center justify-center"
           aria-label="完了にする"
         >
-          {isInProgress && <div className="w-1.5 h-1.5 rounded-full bg-current" />}
+          <span
+            className={cn(
+              'w-5 h-5 rounded border-2 border-current opacity-50 hover:opacity-90 hover:bg-current/10 transition-colors flex items-center justify-center',
+              isInProgress && 'border-dashed',
+            )}
+          >
+            {isInProgress && <span className="w-2 h-2 rounded-full bg-current" />}
+          </span>
         </button>
 
         <div className="flex-1 min-w-0">
@@ -132,11 +136,11 @@ export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
           <button
             onPointerDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); navigator.vibrate?.(12); updateTask(task.id, { isDeferred: true }); }}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+            className="opacity-40 group-hover:opacity-100 min-w-[40px] min-h-[40px] -my-1.5 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
             aria-label="今日はやらない"
             title="今日はやらない"
           >
-            <CalendarX className="w-3.5 h-3.5" />
+            <CalendarX className="w-4 h-4" />
           </button>
         )}
 
@@ -148,25 +152,25 @@ export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
             updateTask(task.id, { status: isInProgress ? 'pending' : 'in-progress' });
           }}
           className={cn(
-            'p-1 rounded transition-opacity shrink-0',
+            'min-w-[40px] min-h-[40px] -my-1.5 flex items-center justify-center rounded transition-opacity shrink-0',
             isInProgress
               ? 'opacity-100 bg-amber-500/30'
-              : 'opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10',
+              : 'opacity-40 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10',
           )}
           aria-label={isInProgress ? '進行中を解除' : '着手する'}
           title={isInProgress ? '進行中を解除' : '着手する'}
         >
-          <CircleDot className="w-3.5 h-3.5" />
+          <CircleDot className="w-4 h-4" />
         </button>
 
         {/* 削除ボタン */}
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); deleteTask(task.id); }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
+          className="opacity-40 group-hover:opacity-100 min-w-[40px] min-h-[40px] -my-1.5 -mr-1.5 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
           aria-label="削除"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
     </div>

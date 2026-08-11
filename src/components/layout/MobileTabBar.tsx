@@ -20,14 +20,14 @@ export function MobileTabBar({ activeTab, onTabChange, todoCount = 0 }: MobileTa
       <button
         onClick={() => onTabChange('today')}
         className={cn(
-          'flex-1 flex flex-col items-center justify-center gap-1 min-h-[60px] py-2.5 text-xs transition-colors relative active:bg-gray-100 dark:active:bg-gray-800',
+          'flex-1 flex flex-col items-center justify-center gap-1.5 min-h-[72px] py-3 text-sm transition-colors relative active:bg-gray-100 dark:active:bg-gray-800',
           activeTab === 'today' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400',
         )}
       >
         <span className="relative">
-          <CheckSquare className="w-6 h-6" />
+          <CheckSquare className="w-7 h-7" />
           {todoCount > 0 && (
-            <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 flex items-center justify-center bg-blue-600 text-white text-[10px] font-bold rounded-full px-0.5 leading-none">
+            <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] flex items-center justify-center bg-blue-600 text-white text-[10px] font-bold rounded-full px-1 leading-none">
               {todoCount > 99 ? '99+' : todoCount}
             </span>
           )}
@@ -37,11 +37,11 @@ export function MobileTabBar({ activeTab, onTabChange, todoCount = 0 }: MobileTa
       <button
         onClick={() => onTabChange('log')}
         className={cn(
-          'flex-1 flex flex-col items-center justify-center gap-1 min-h-[60px] py-2.5 text-xs transition-colors active:bg-gray-100 dark:active:bg-gray-800',
+          'flex-1 flex flex-col items-center justify-center gap-1.5 min-h-[72px] py-3 text-sm transition-colors active:bg-gray-100 dark:active:bg-gray-800',
           activeTab === 'log' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400',
         )}
       >
-        <BookOpen className="w-6 h-6" />
+        <BookOpen className="w-7 h-7" />
         ログ
       </button>
     </nav>
