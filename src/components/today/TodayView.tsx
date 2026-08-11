@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Plus, ChevronDown, Check, Trash2, RotateCcw } from 'lucide-react';
@@ -55,7 +55,7 @@ function DeferredTaskRow({ task }: { task: Task }) {
     <div className={cn('group flex items-center gap-2 px-2 py-1 rounded-lg border opacity-70', TASK_COLOR_MAP[task.color])}>
       <p className="flex-1 min-w-0 text-xs truncate">{task.title}</p>
       <button
-        onClick={() => updateTask(task.id, { isDeferred: false })}
+        onClick={() => updateTask(task.id, { isDeferred: false, deferredAt: undefined })}
         className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
         aria-label="戻す"
       >
@@ -72,17 +72,39 @@ function DeferredTaskRow({ task }: { task: Task }) {
   );
 }
 
-function SectionHeader({ label, count }: { label: string; count?: number }) {
+function formatMinutes(min: number): string {
+  if (min < 60) return `${min}分`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}時間${m}分` : `${h}時間`;
+}
+
+/** 合計がこの分数を超えたら「積みすぎ」のサインとして色を変える */
+const OVERLOAD_MINUTES = 240;
+
+function SectionHeader({ label, count, totalMinutes }: { label: string; count?: number; totalMinutes?: number }) {
   return (
     <div className="flex items-center gap-2 mb-1.5 px-1">
       <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</span>
       {count !== undefined && count > 0 && (
         <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full">{count}</span>
       )}
+      {totalMinutes !== undefined && totalMinutes > 0 && (
+        <span className={cn(
+          'text-xs',
+          totalMinutes > OVERLOAD_MINUTES
+            ? 'text-amber-600 dark:text-amber-400 font-semibold'
+            : 'text-gray-400 dark:text-gray-600',
+        )}>
+          合計{formatMinutes(totalMinutes)}
+        </span>
+      )}
       <div className="flex-1 border-t border-gray-100 dark:border-gray-800" />
     </div>
   );
 }
+
+const PRAISE_MESSAGES = ['ナイス！', 'いい調子！', 'その調子！', '絶好調！', 'よくやった！', 'すごい！'];
 
 interface TodayViewProps {
   highlightTaskId?: string | null;
@@ -93,6 +115,19 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [showDeferred,  setShowDeferred]  = useState(false);
   const [quickTitle,    setQuickTitle]    = useState('');
+  const [praise,        setPraise]        = useState<string | null>(null);
+  const praiseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 完了直後に「今日N件目」の称賛トーストを表示（即時報酬）
+  const handleCompleted = useCallback(() => {
+    const todayStr = today();
+    const count = useStore.getState().tasks
+      .filter(t => t.status === 'completed' && t.completedAt?.slice(0, 10) === todayStr).length;
+    const msg = PRAISE_MESSAGES[Math.floor(Math.random() * PRAISE_MESSAGES.length)];
+    setPraise(`今日${count}件目！ ${msg}`);
+    if (praiseTimer.current) clearTimeout(praiseTimer.current);
+    praiseTimer.current = setTimeout(() => setPraise(null), 2200);
+  }, []);
 
   const tasks   = useStore(s => s.tasks);
   const config  = useStore(s => s.config);
@@ -143,6 +178,13 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
   };
 
   const deferredTasks = tasks.filter(t => t.isDeferred && t.status !== 'completed');
+  // 1週間以上眠っている保留タスク（墓場化のサイン）
+  const staleDeferredCount = deferredTasks.filter(
+    t => t.deferredAt && Date.now() - new Date(t.deferredAt).getTime() > 7 * 24 * 60 * 60 * 1000,
+  ).length;
+
+  const dailyTotalMin = dailyTasks.reduce((sum, t) => sum + t.estimatedMinutes, 0);
+  const todoTotalMin  = todoTasks.reduce((sum, t) => sum + t.estimatedMinutes, 0);
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950">
@@ -172,7 +214,7 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
         {/* 日次タスク */}
         {dailyTasks.length > 0 && (
           <section>
-            <SectionHeader label="日次タスク" count={dailyTasks.length} />
+            <SectionHeader label="日次タスク" count={dailyTasks.length} totalMinutes={dailyTotalMin} />
             <div className="space-y-1.5">
               {dailyTasks.map(task => (
                 <TodayTaskCard
@@ -180,6 +222,7 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
                   task={task}
                   isHighlighted={task.id === highlightTaskId}
                   streak={task.recurringTemplateId ? streakByTemplate[task.recurringTemplateId] ?? 0 : 0}
+                  onCompleted={handleCompleted}
                 />
               ))}
             </div>
@@ -188,7 +231,7 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
 
         {/* やること */}
         <section>
-          <SectionHeader label="やること" count={todoTasks.length} />
+          <SectionHeader label="やること" count={todoTasks.length} totalMinutes={todoTotalMin} />
           {todoTasks.length === 0 && dailyTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-28 text-gray-400 dark:text-gray-600 gap-1">
               <Check className="w-7 h-7 opacity-30" strokeWidth={1.5} />
@@ -199,7 +242,7 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
           ) : (
             <div className="space-y-1.5">
               {todoTasks.map(task => (
-                <TodayTaskCard key={task.id} task={task} isHighlighted={task.id === highlightTaskId} />
+                <TodayTaskCard key={task.id} task={task} isHighlighted={task.id === highlightTaskId} onCompleted={handleCompleted} />
               ))}
             </div>
           )}
@@ -254,6 +297,11 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
             >
               <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', showDeferred && 'rotate-180')} />
               保留中 ({deferredTasks.length})
+              {staleDeferredCount > 0 && (
+                <span className="text-amber-600 dark:text-amber-400 ml-1">
+                  ・{staleDeferredCount}件が1週間以上眠っています
+                </span>
+              )}
             </button>
             {showDeferred && (
               <div className="space-y-1.5 mt-1">
@@ -263,6 +311,17 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
           </section>
         )}
       </div>
+
+      {/* 完了トースト */}
+      {praise && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 bg-green-600 text-white text-sm font-medium rounded-full px-4 py-2 shadow-lg animate-in slide-in-from-bottom fade-in duration-200 whitespace-nowrap pointer-events-none"
+        >
+          🎉 {praise}
+        </div>
+      )}
 
       <TaskFormModal open={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>

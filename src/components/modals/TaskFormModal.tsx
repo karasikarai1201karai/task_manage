@@ -28,6 +28,12 @@ const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
+const PRIORITY_OPTIONS: { value: TaskPriority; label: string; activeClass: string }[] = [
+  { value: 'high',   label: '高', activeClass: 'bg-red-500 border-red-500 text-white' },
+  { value: 'medium', label: '中', activeClass: 'bg-amber-500 border-amber-500 text-white' },
+  { value: 'low',    label: '低', activeClass: 'bg-gray-500 border-gray-500 text-white' },
+];
+
 export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: TaskFormModalProps) {
   const addTask      = useStore(s => s.addTask);
   const scheduleTask = useStore(s => s.scheduleTask);
@@ -36,6 +42,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
 
   const [title,        setTitle]        = useState('');
   const [minutes,      setMinutes]      = useState(config.defaultTaskDuration);
+  const [priority,     setPriority]     = useState<TaskPriority>('medium');
   const [color,        setColor]        = useState<TaskColor>('blue');
   const [isRecurring,    setIsRecurring]    = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('daily');
@@ -48,6 +55,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
     if (!open) return;
     setTitle('');
     setMinutes(config.defaultTaskDuration);
+    setPriority('medium');
     setColor('blue');
     setIsRecurring(false);
     setRecurrenceType('daily');
@@ -70,7 +78,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
         title: title.trim(),
         estimatedMinutes: minutes,
         color,
-        priority: 'medium' as TaskPriority,
+        priority,
         tags: [],
         recurrenceType,
         weeklyDay: recurrenceType === 'weekly' ? weeklyDay : undefined,
@@ -91,7 +99,7 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
         estimatedMinutes: minutes,
         color,
         status: 'pending',
-        priority: 'medium' as TaskPriority,
+        priority,
         tags: [],
       });
     }
@@ -159,6 +167,30 @@ export function TaskFormModal({ open, onClose, defaultDate, defaultStartTime }: 
               />
               <div className="flex justify-between text-xs text-gray-400 mt-0.5">
                 <span>5分</span><span>4時間</span>
+              </div>
+            </div>
+
+            {/* 優先度 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                優先度
+              </label>
+              <div className="flex gap-2">
+                {PRIORITY_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPriority(opt.value)}
+                    className={cn(
+                      'flex-1 py-2 text-sm font-medium rounded-lg border transition-colors',
+                      priority === opt.value
+                        ? opt.activeClass
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
 

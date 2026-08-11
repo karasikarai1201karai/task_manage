@@ -88,14 +88,16 @@ export function LogView() {
       {/* ストリークヒーロー */}
       <div className="px-4 pt-6 pb-5 bg-gradient-to-b from-orange-50 to-white dark:from-orange-950/25 dark:to-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="text-center">
-          <div className="text-6xl leading-none">{streak > 0 ? '🔥' : '🌱'}</div>
+          <div className="text-6xl leading-none">{streak > 0 ? '🔥' : stats.longest > 0 ? '💪' : '🌱'}</div>
           <div className="mt-2 flex items-baseline justify-center gap-1">
             <span className="text-5xl font-extrabold tabular-nums text-gray-900 dark:text-gray-100">{streak}</span>
             <span className="text-lg font-bold text-gray-600 dark:text-gray-300">日連続</span>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
             {streak === 0
-              ? '今日タスクを1つ完了してストリークを始めよう！'
+              ? stats.longest > 0
+                ? `最長${stats.longest}日の記録はちゃんと残ってる。今日1件で再スタート！`
+                : '今日タスクを1つ完了してストリークを始めよう！'
               : stats.todayCount > 0
                 ? '今日も達成！この調子！🎉'
                 : '今日1つ完了してストリークをつなごう'}

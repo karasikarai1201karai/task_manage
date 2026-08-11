@@ -25,6 +25,17 @@ body {
   height: 100dvh;
 }
 
+/* タスク完了時の祝福アニメーション（少し膨らんで緑に光り、縮んで消える） */
+@keyframes task-complete {
+  0%   { transform: scale(1);    opacity: 1; box-shadow: 0 0 0 0 var(--glow-color); }
+  35%  { transform: scale(1.03); opacity: 1; box-shadow: 0 0 16px 4px var(--glow-color); }
+  100% { transform: scale(0.9);  opacity: 0; box-shadow: 0 0 24px 8px transparent; }
+}
+.task-completing {
+  animation: task-complete 0.35s ease-in forwards;
+  pointer-events: none;
+}
+
 /* iOS Safari はフォントサイズ16px未満の入力欄にフォーカスすると自動ズームするため、
    タッチ端末では入力系要素を16px以上に固定してズームを防ぐ */
 @media (hover: none) and (pointer: coarse) {

@@ -20,9 +20,13 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  /** 着手（in-progress）にした時刻。経過時間表示に使用 */
+  startedAt?: string;
   rolledOverFrom?: DateString;
   recurringTemplateId?: string;
   isDeferred?: boolean;
+  /** 保留にした時刻。長期放置の検知に使用 */
+  deferredAt?: string;
   materializedDate?: DateString;
 }
 
