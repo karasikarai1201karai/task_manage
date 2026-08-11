@@ -17,3 +17,18 @@ body {
   margin: 0;
   padding: 0;
 }
+
+/* iOS Safari はフォントサイズ16px未満の入力欄にフォーカスすると自動ズームするため、
+   タッチ端末では入力系要素を16px以上に固定してズームを防ぐ */
+@media (hover: none) and (pointer: coarse) {
+  input[type='text'],
+  input[type='url'],
+  input[type='password'],
+  input[type='email'],
+  input[type='number'],
+  input[type='search'],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
