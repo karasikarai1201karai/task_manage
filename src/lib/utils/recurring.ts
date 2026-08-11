@@ -1,5 +1,5 @@
-import { getDay, parseISO } from 'date-fns';
-import type { DateString, RecurringTemplate, Task, TimeString } from '@/types';
+import { format, getDay, parseISO, subDays } from 'date-fns';
+import type { DateString, RecurrenceType, RecurringTemplate, Task, TimeString } from '@/types';
 import { loadRecurringTemplates } from './recurringStorage';
 
 export function isTemplateDueOn(template: RecurringTemplate, date: DateString, tasks: Task[]): boolean {
@@ -26,6 +26,45 @@ export function isTemplateDueOn(template: RecurringTemplate, date: DateString, t
 
 export function getDueTemplates(templates: RecurringTemplate[], date: DateString, tasks: Task[]): RecurringTemplate[] {
   return templates.filter(t => isTemplateDueOn(t, date, tasks));
+}
+
+/**
+ * 定期タスクの連続達成数を返す。
+ * daily/onCompletion: 連続日数、weekdays: 土日を除いた連続日数、weekly: 連続週数。
+ * 今日の分が未完了でもストリークは途切れていないとみなす（前回分から数える）。
+ */
+export function getTemplateStreak(
+  templateId: string,
+  tasks: Task[],
+  recurrenceType: RecurrenceType,
+  todayStr: DateString,
+): number {
+  const doneDates = new Set(
+    tasks
+      .filter(t => t.recurringTemplateId === templateId && t.status === 'completed' && t.completedAt)
+      .map(t => t.completedAt!.slice(0, 10)),
+  );
+  if (doneDates.size === 0) return 0;
+
+  const step = (d: Date): Date => {
+    if (recurrenceType === 'weekly') return subDays(d, 7);
+    if (recurrenceType === 'weekdays') {
+      let p = subDays(d, 1);
+      while (getDay(p) === 0 || getDay(p) === 6) p = subDays(p, 1);
+      return p;
+    }
+    return subDays(d, 1);
+  };
+
+  let cur = parseISO(todayStr);
+  if (!doneDates.has(format(cur, 'yyyy-MM-dd'))) cur = step(cur);
+
+  let count = 0;
+  while (doneDates.has(format(cur, 'yyyy-MM-dd'))) {
+    count++;
+    cur = step(cur);
+  }
+  return count;
 }
 
 export function materializeRecurringTasks(

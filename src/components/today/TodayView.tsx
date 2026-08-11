@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Plus, ChevronDown, Check, Trash2, RotateCcw } from 'lucide-react';
@@ -8,11 +8,13 @@ import { useStore } from '@/store/appStore';
 import { TASK_COLOR_MAP, PRIORITY_RANK } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { today } from '@/lib/utils/time';
+import { getTemplateStreak } from '@/lib/utils/recurring';
+import { loadRecurringTemplates } from '@/lib/utils/recurringStorage';
 import { TodayTaskCard } from './TodayTaskCard';
 import { TaskFormModal } from '@/components/modals/TaskFormModal';
 import type { Task } from '@/types';
 
-function CompletedTaskRow({ task }: { task: Task }) {
+function CompletedTaskRow({ task, streak = 0 }: { task: Task; streak?: number }) {
   const uncompleteTask = useStore(s => s.uncompleteTask);
   const deleteTask     = useStore(s => s.deleteTask);
   return (
@@ -27,6 +29,14 @@ function CompletedTaskRow({ task }: { task: Task }) {
         </span>
       </button>
       <p className="flex-1 min-w-0 text-xs line-through truncate">{task.title}</p>
+      {streak > 0 && (
+        <span
+          className="text-[10px] font-bold text-orange-500 dark:text-orange-400 shrink-0 no-underline"
+          title={`${streak}回連続で達成中！`}
+        >
+          🔥{streak}
+        </span>
+      )}
       <button
         onClick={() => deleteTask(task.id)}
         className="opacity-40 group-hover:opacity-100 min-w-[36px] min-h-[36px] -mr-1 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0"
@@ -103,6 +113,16 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
   const dailyTasks  = sort(activeTasks.filter(t => !!t.recurringTemplateId));
   const todoTasks   = sort(activeTasks.filter(t => !t.recurringTemplateId));
 
+  // 定期タスクごとの連続達成数（テンプレートIDごとに計算）
+  const streakByTemplate = useMemo(() => {
+    const templates = loadRecurringTemplates();
+    const map: Record<string, number> = {};
+    templates.forEach(tpl => {
+      map[tpl.id] = getTemplateStreak(tpl.id, tasks, tpl.recurrenceType, today());
+    });
+    return map;
+  }, [tasks]);
+
   const completedTasks = tasks
     .filter(t => t.status === 'completed')
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
@@ -155,7 +175,12 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
             <SectionHeader label="日次タスク" count={dailyTasks.length} />
             <div className="space-y-1.5">
               {dailyTasks.map(task => (
-                <TodayTaskCard key={task.id} task={task} isHighlighted={task.id === highlightTaskId} />
+                <TodayTaskCard
+                  key={task.id}
+                  task={task}
+                  isHighlighted={task.id === highlightTaskId}
+                  streak={task.recurringTemplateId ? streakByTemplate[task.recurringTemplateId] ?? 0 : 0}
+                />
               ))}
             </div>
           </section>
@@ -205,7 +230,13 @@ export function TodayView({ highlightTaskId }: TodayViewProps) {
                       <div className="flex-1 border-t border-gray-100 dark:border-gray-800" />
                     </div>
                     <div className="space-y-1.5">
-                      {group.tasks.map(task => <CompletedTaskRow key={task.id} task={task} />)}
+                      {group.tasks.map(task => (
+                        <CompletedTaskRow
+                          key={task.id}
+                          task={task}
+                          streak={task.recurringTemplateId ? streakByTemplate[task.recurringTemplateId] ?? 0 : 0}
+                        />
+                      ))}
                     </div>
                   </div>
                 ))}

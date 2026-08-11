@@ -14,9 +14,20 @@ const SWIPE_COMPLETE_PX = 80;
 interface TodayTaskCardProps {
   task: Task;
   isHighlighted?: boolean;
+  /** 定期タスクの連続達成数（1以上でバッジ表示） */
+  streak?: number;
 }
 
-export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
+/** 継続日数に応じたバッジの見た目（数字が伸びるほど豪華に進化する） */
+function streakBadgeStyle(streak: number): { emoji: string; className: string } {
+  if (streak >= 30) return { emoji: '👑', className: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' };
+  if (streak >= 14) return { emoji: '🔥', className: 'bg-red-500 text-white' };
+  if (streak >= 7)  return { emoji: '🔥', className: 'bg-orange-500 text-white' };
+  if (streak >= 3)  return { emoji: '🔥', className: 'bg-amber-500 text-white' };
+  return { emoji: '✨', className: 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' };
+}
+
+export function TodayTaskCard({ task, isHighlighted, streak = 0 }: TodayTaskCardProps) {
   const deleteTask   = useStore(s => s.deleteTask);
   const completeTask = useStore(s => s.completeTask);
   const updateTask   = useStore(s => s.updateTask);
@@ -121,6 +132,17 @@ export function TodayTaskCard({ task, isHighlighted }: TodayTaskCardProps) {
             <span className="text-xs opacity-60">{task.estimatedMinutes}分</span>
             {task.recurringTemplateId && (
               <RefreshCw className="w-2.5 h-2.5 opacity-40 ml-0.5" />
+            )}
+            {streak > 0 && (
+              <span
+                className={cn(
+                  'flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ml-0.5',
+                  streakBadgeStyle(streak).className,
+                )}
+                title={`${streak}回連続で達成中！`}
+              >
+                {streakBadgeStyle(streak).emoji}{streak}
+              </span>
             )}
             {task.rolledOverFrom && (
               <span className="text-xs bg-orange-400 text-white px-1.5 py-0.5 rounded-full leading-none">繰越</span>
